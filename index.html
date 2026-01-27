@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡皮巴拉物理遊戲 - 實景場景版</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+        /* 背景層 */
+        #background-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease;
+        }
+        /* AR 透視相機背景 */
+        #ar-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -2;
+            transform: scaleX(-1);
+            display: none;
+        }
+        /* 溫泉蒸氣效果 */
+        #steam-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(2px);
+            pointer-events: none;
+            z-index: 1;
+            display: none;
+        }
+        /* 相機預覽小窗 */
+        #video-preview-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 100;
+            transform: scaleX(-1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        #game-canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: relative;
+            z-index: 10;
+        }
+        .ui-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 110;
+        }
+        .status-card {
+            background: rgba(41, 37, 36, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border-left: 6px solid #fbbf24;
+            pointer-events: auto;
+        }
+        .control-group {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        select, button {
+            background: #44403c;
+            color: #fde68a;
+            border: 1px solid #57534e;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        select:hover, button:hover {
+            background: #57534e;
+        }
+        #area-tag {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-family: monospace;
+            color: #fbbf24;
+            z-index: 110;
+        }
+        footer {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            z-index: 110;
+            color: rgba(255,255,255,0.7);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        footer a { color: #fbbf24; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="background-layer"></div>
+    <video id="ar-video" autoplay playsinline></video>
+    <div id="steam-overlay"></div>
+
+    <div class="ui-overlay">
+        <div class="status-card">
+            <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 實景空間</h1>
+            <p class="text-xs text-amber-200 opacity-80 mb-3">場景、相機預覽、實體互動</p>
+            
+            <div class="control-group">
+                <div>
+                    <label class="text-xs block mb-1">場景切換：</label>
+                    <select id="bg-select" class="w-full">
+                        <option value="pool">清涼水池 (圖片)</option>
+                        <option value="onsen">溫暖溫泉 (圖片)</option>
+                        <option value="land">青青草地 (圖片)</option>
+                        <option value="ar">透視模式 (AR相機)</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cam-toggle" checked>
+                    <label for="cam-toggle" class="text-xs cursor-pointer">顯示相機小窗</label>
+                </div>
+                <div class="flex gap-2">
+                    <button id="reset-pos" class="flex-1">重置位置</button>
+                    <button id="reset-size" class="flex-1">重置大小</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="area-tag">面積: <span id="area-val">0</span> px</div>
+
+    <div id="video-preview-container">
+        <video id="input-video" class="hidden"></video>
+        <canvas id="output-video-canvas" style="width: 100%; height: 100%;"></canvas>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <footer>
+        版權所有 © 2026 <a href="https://panda panda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
+    </footer>
+
+    <script>
+        const { Engine, Render, Runner, World, Bodies, Composite, Constraint, Events, Vector, Body } = Matter;
+
+        // 場景圖片 URL
+        const bgImages = {
+            pool: 'https://www.ritagiang.com/files/articleFilesfinder/images/20150613_134817-1.jpg',
+            onsen: 'https://images.storm.mg/gallery/201145/20190212-102833_U7321_M497924_6eda.jpg',
+            land: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQedVDhKZfVjOlORwYqk1pqjnTo9elRJLHM1A&s'
+        };
+
+        // 介面元素
+        const bgLayer = document.getElementById('background-layer');
+        const arVideo = document.getElementById('ar-video');
+        const steamOverlay = document.getElementById('steam-overlay');
+        const bgSelect = document.getElementById('bg-select');
+        const camToggle = document.getElementById('cam-toggle');
+        const camPreview = document.getElementById('video-preview-container');
+        const areaVal = document.getElementById('area-val');
+
+        // 物理引擎
+        const canvas = document.getElementById('game-canvas');
+        const engine = Engine.create();
+        const world = engine.world;
+        engine.gravity.y = 1.0;
+
+        const render = Render.create({
+            canvas: canvas,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // 背景切換邏輯
+        function updateBackground() {
+            const mode = bgSelect.value;
+            arVideo.style.display = 'none';
+            steamOverlay.style.display = 'none';
+            bgLayer.style.backgroundImage = 'none';
+
+            if (mode === 'ar') {
+                arVideo.style.display = 'block';
+            } else {
+                bgLayer.style.backgroundImage = `url('${bgImages[mode]}')`;
+                if (mode === 'onsen') {
+                    steamOverlay.style.display = 'block';
+                }
+            }
+        }
+        bgSelect.addEventListener('change', updateBackground);
+        updateBackground();
+
+        // 相機預覽切換
+        camToggle.addEventListener('change', () => {
+            camPreview.style.display = camToggle.checked ? 'block' : 'none';
+        });
+
+        // 邊界鎖定
+        const wallThickness = 600;
+        function createWalls() {
+            World.clear(world, false); 
+            const opt = { isStatic: true, friction: 0.5, restitution: 0.7, render: { visible: false } };
+            const walls = [
+                Bodies.rectangle(window.innerWidth / 2, window.innerHeight + wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
+                Bodies.rectangle(window.innerWidth / 2, -wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
+                Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt),
+                Bodies.rectangle(window.innerWidth + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt)
+            ];
+            World.add(world, walls);
+        }
+        createWalls();
+
+        // 卡皮巴拉球
+        function createCapybaraBall(xx, yy, radius, segments) {
+            const particles = [];
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 7, {
+                    friction: 0.5, restitution: 0.8, render: { visible: false }
+                }));
+            }
+            const constraints = [];
+            for (let i = 0; i < segments; i++) {
+                constraints.push(Constraint.create({
+                    bodyA: particles[i], bodyB: particles[(i + 1) % segments],
+                    stiffness: 0.9, damping: 0.05, render: { visible: false }
+                }));
+            }
+            const center = Bodies.circle(xx, yy, 25, { isSensor: true, render: { visible: false } });
+            particles.forEach(p => {
+                constraints.push(Constraint.create({
+                    bodyA: center, bodyB: p, stiffness: 0.22, damping: 0.1, render: { visible: false }
+                }));
+            });
+            const composite = Composite.create({ bodies: [...particles, center], constraints });
+            World.add(world, composite);
+            return { particles, center, radius, composite };
+        }
+
+        let ball = createCapybaraBall(window.innerWidth / 2, window.innerHeight / 2, 140, 40);
+
+        function resetPosition() {
+            const xx = window.innerWidth / 2, yy = window.innerHeight / 2;
+            const dx = xx - ball.center.position.x, dy = yy - ball.center.position.y;
+            Body.setPosition(ball.center, { x: xx, y: yy });
+            ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy }));
+        }
+
+        function resetSize() {
+            const cx = ball.center.position.x, cy = ball.center.position.y;
+            const a0 = Math.atan2(ball.particles[0].position.y - cy, ball.particles[0].position.x - cx);
+            ball.particles.forEach((p, i) => {
+                const a = a0 + (i / ball.particles.length) * Math.PI * 2;
+                Body.setPosition(p, { x: cx + Math.cos(a) * ball.radius, y: cy + Math.sin(a) * ball.radius });
+                Body.setVelocity(p, { x: 0, y: 0 });
+            });
+            Body.setVelocity(ball.center, { x: 0, y: 0 });
+        }
+
+        document.getElementById('reset-pos').onclick = resetPosition;
+        document.getElementById('reset-size').onclick = resetSize;
+
+        // 物理循環與座標限制
+        Events.on(engine, 'afterUpdate', () => {
+            // 核心硬度調整：調低 minR 以允許更大程度的變形
+            const pad = 20, minR = 30; 
+            ball.particles.forEach(p => {
+                const dx = p.position.x - ball.center.position.x;
+                const dy = p.position.y - ball.center.position.y;
+                const d = Math.hypot(dx, dy);
+                if (d < minR) {
+                    const a = Math.atan2(dy, dx);
+                    Body.setPosition(p, { x: ball.center.position.x + Math.cos(a) * minR, y: ball.center.position.y + Math.sin(a) * minR });
+                }
+                let x = p.position.x, y = p.position.y;
+                if (x < pad) x = pad; if (x > window.innerWidth - pad) x = window.innerWidth - pad;
+                if (y < pad) y = pad; if (y > window.innerHeight - pad) y = window.innerHeight - pad;
+                if (x !== p.position.x || y !== p.position.y) Body.setPosition(p, { x, y });
+            });
+
+            // 面積計算與自動恢復
+            let area = 0;
+            const pts = ball.particles;
+            for (let i = 0; i < pts.length; i++) {
+                area += (pts[i].position.x * pts[(i + 1) % pts.length].position.y) - (pts[(i + 1) % pts.length].position.x * pts[i].position.y);
+            }
+            area = Math.abs(area) * 0.5;
+            areaVal.innerText = Math.round(area);
+            if (area < 50) resetSize();
+        });
+
+        // MediaPipe 手勢處理
+        const videoElement = document.getElementById('input-video');
+        const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
+        let lastResults = null, activePinch = null;
+
+        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+        hands.onResults((results) => {
+            lastResults = results;
+            videoPreviewCtx.save();
+            videoPreviewCtx.clearRect(0, 0, 200, 150);
+            videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
+            videoPreviewCtx.restore();
+            
+            // 如果是 AR 模式，設定相機背景
+            if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) {
+                arVideo.srcObject = videoElement.srcObject;
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lms = results.multiHandLandmarks[0];
+                const W = window.innerWidth, H = window.innerHeight;
+                const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
+                
+                const thumb = getPx(4);
+                const tips = [8, 12, 16, 20].map(getPx);
+                let pinchPos = null;
+                tips.forEach(t => { if (Math.hypot(thumb.x - t.x, thumb.y - t.y) < 55) pinchPos = { x: (thumb.x + t.x)/2, y: (thumb.y + t.y)/2 }; });
+
+                if (pinchPos) {
+                    if (!activePinch) {
+                        let closest = null, minDist = 160;
+                        ball.particles.forEach(p => {
+                            const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
+                            if (d < minDist) { minDist = d; closest = p; }
+                        });
+                        if (closest) {
+                            activePinch = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.35, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
+                            World.add(world, activePinch);
+                        }
+                    } else activePinch.pointA = pinchPos;
+                } else {
+                    if (activePinch) { World.remove(world, activePinch); activePinch = null; }
+                }
+
+                // 指尖排斥感
+                [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
+                    ball.particles.forEach(p => {
+                        const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
+                        if (d < 110) {
+                            const a = Math.atan2(p.position.y - tip.y, p.position.x - tip.x);
+                            Body.applyForce(p, p.position, { x: Math.cos(a) * 0.025 * (1 - d/110), y: Math.sin(a) * 0.025 * (1 - d/110) });
+                        }
+                    });
+                });
+            } else {
+                if (activePinch) { World.remove(world, activePinch); activePinch = null; }
+            }
+        });
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { 
+                await hands.send({image: videoElement}); 
+            },
+            width: 640, height: 480
+        });
+        camera.start();
+
+        // 渲染外觀與手部骨架
+        Events.on(render, 'afterRender', () => {
+            const ctx = render.context, pts = ball.particles, center = ball.center.position;
+
+            // 1. 水豚身體
+            ctx.beginPath();
+            ctx.moveTo(pts[0].position.x, pts[0].position.y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
+            ctx.closePath();
+            const grad = ctx.createRadialGradient(center.x, center.y - 30, 20, center.x, center.y, ball.radius * 1.3);
+            grad.addColorStop(0, '#a16207'); grad.addColorStop(1, '#713f12');
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.strokeStyle = '#452205'; ctx.lineWidth = 5; ctx.stroke();
+
+            const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
+            
+            // 耳朵
+            const drawEar = (off) => {
+                const a = bAngle + off;
+                const ex = center.x + Math.cos(a) * (ball.radius * 0.95), ey = center.y + Math.sin(a) * (ball.radius * 0.95);
+                ctx.fillStyle = '#713f12'; ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#452205'; ctx.lineWidth = 2; ctx.stroke();
+            };
+            drawEar(-Math.PI * 0.75); drawEar(-Math.PI * 0.25);
+
+            // 臉部
+            ctx.save();
+            ctx.translate(center.x, center.y); ctx.rotate(bAngle);
+            ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-45, 5, 90, 35, 15); ctx.fill();
+            ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(10, 25, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-35, -15); ctx.lineTo(-20, -12); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
+            ctx.restore();
+
+            // 橘子
+            let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
+            const ox = topP.position.x, oy = topP.position.y - 12;
+            ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
+
+            // 骨架渲染
+            if (lastResults && lastResults.multiHandLandmarks) {
+                const W = window.innerWidth, H = window.innerHeight;
+                lastResults.multiHandLandmarks.forEach(lms => {
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 4;
+                    HAND_CONNECTIONS.forEach(([s, e]) => {
+                        ctx.beginPath();
+                        ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H);
+                        ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H);
+                        ctx.stroke();
+                    });
+                    lms.forEach(lm => {
+                        ctx.beginPath(); ctx.arc((1 - lm.x) * W, lm.y * H, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#fff'; ctx.fill();
+                    });
+                });
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            render.options.width = window.innerWidth; render.options.height = window.innerHeight;
+            createWalls();
+        });
+
+        // 啟動時自動重置一次
+        setTimeout(() => { resetPosition(); resetSize(); }, 1000);
+
+    </script>
+</body>
+</html>
