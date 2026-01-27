@@ -68,6 +68,7 @@
             z-index: 100;
             transform: scaleX(-1);
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: none; /* 初始隱藏 */
         }
         #game-canvas {
             width: 100vw;
@@ -84,12 +85,13 @@
             z-index: 110;
         }
         .status-card {
-            background: rgba(41, 37, 36, 0.85);
+            background: rgba(41, 37, 36, 0.9);
             backdrop-filter: blur(10px);
             padding: 20px;
             border-radius: 16px;
             border-left: 6px solid #fbbf24;
             pointer-events: auto;
+            max-width: 320px;
         }
         .control-group {
             margin-top: 15px;
@@ -120,6 +122,18 @@
             color: #fbbf24;
             z-index: 110;
         }
+        .instruction-box {
+            background: rgba(28, 25, 23, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .instruction-item {
+            font-size: 13px;
+            color: #fde68a;
+            margin-bottom: 4px;
+        }
         footer {
             position: fixed;
             bottom: 10px;
@@ -141,21 +155,28 @@
 
     <div class="ui-overlay">
         <div class="status-card">
-            <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 實景空間</h1>
-            <p class="text-xs text-amber-200 opacity-80 mb-3">場景、相機預覽、實體互動</p>
+            <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 療癒空間</h1>
+            
+            <div class="instruction-box">
+                <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
+                <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
+                <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
+                <div class="instruction-item">● 核心軟化：享受更細膩的變形手感</div>
+                <div class="instruction-item">● 自動重置：面積過小時自動恢復原狀</div>
+            </div>
             
             <div class="control-group">
                 <div>
                     <label class="text-xs block mb-1">場景切換：</label>
                     <select id="bg-select" class="w-full">
-                        <option value="pool">清涼水池 (圖片)</option>
                         <option value="onsen">溫暖溫泉 (圖片)</option>
+                        <option value="pool">清涼水池 (圖片)</option>
                         <option value="land">青青草地 (圖片)</option>
                         <option value="ar">透視模式 (AR相機)</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" id="cam-toggle" checked>
+                    <input type="checkbox" id="cam-toggle">
                     <label for="cam-toggle" class="text-xs cursor-pointer">顯示相機小窗</label>
                 </div>
                 <div class="flex gap-2">
@@ -176,7 +197,7 @@
     <canvas id="game-canvas"></canvas>
 
     <footer>
-        版權所有 © 2026 <a href="https://panda panda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
+        版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
     </footer>
 
     <script>
@@ -236,6 +257,9 @@
             }
         }
         bgSelect.addEventListener('change', updateBackground);
+        
+        // 初始設定
+        bgSelect.value = 'onsen';
         updateBackground();
 
         // 相機預覽切換
@@ -310,8 +334,8 @@
 
         // 物理循環與座標限制
         Events.on(engine, 'afterUpdate', () => {
-            // 核心硬度調整：調低 minR 以允許更大程度的變形
-            const pad = 20, minR = 30; 
+            // 極低核心硬度
+            const pad = 20, minR = 25; 
             ball.particles.forEach(p => {
                 const dx = p.position.x - ball.center.position.x;
                 const dy = p.position.y - ball.center.position.y;
@@ -351,7 +375,6 @@
             videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
             videoPreviewCtx.restore();
             
-            // 如果是 AR 模式，設定相機背景
             if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) {
                 arVideo.srcObject = videoElement.srcObject;
             }
@@ -382,7 +405,6 @@
                     if (activePinch) { World.remove(world, activePinch); activePinch = null; }
                 }
 
-                // 指尖排斥感
                 [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
                     ball.particles.forEach(p => {
                         const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
@@ -398,18 +420,15 @@
         });
 
         const camera = new Camera(videoElement, {
-            onFrame: async () => { 
-                await hands.send({image: videoElement}); 
-            },
+            onFrame: async () => { await hands.send({image: videoElement}); },
             width: 640, height: 480
         });
         camera.start();
 
-        // 渲染外觀與手部骨架
+        // 渲染外觀
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, pts = ball.particles, center = ball.center.position;
 
-            // 1. 水豚身體
             ctx.beginPath();
             ctx.moveTo(pts[0].position.x, pts[0].position.y);
             for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
@@ -421,7 +440,6 @@
 
             const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
             
-            // 耳朵
             const drawEar = (off) => {
                 const a = bAngle + off;
                 const ex = center.x + Math.cos(a) * (ball.radius * 0.95), ey = center.y + Math.sin(a) * (ball.radius * 0.95);
@@ -430,7 +448,6 @@
             };
             drawEar(-Math.PI * 0.75); drawEar(-Math.PI * 0.25);
 
-            // 臉部
             ctx.save();
             ctx.translate(center.x, center.y); ctx.rotate(bAngle);
             ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-45, 5, 90, 35, 15); ctx.fill();
@@ -441,13 +458,11 @@
             ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
             ctx.restore();
 
-            // 橘子
             let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
             const ox = topP.position.x, oy = topP.position.y - 12;
             ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
 
-            // 骨架渲染
             if (lastResults && lastResults.multiHandLandmarks) {
                 const W = window.innerWidth, H = window.innerHeight;
                 lastResults.multiHandLandmarks.forEach(lms => {
@@ -472,9 +487,7 @@
             createWalls();
         });
 
-        // 啟動時自動重置一次
         setTimeout(() => { resetPosition(); resetSize(); }, 1000);
-
     </script>
 </body>
 </html>
