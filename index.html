@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡皮巴拉物理遊戲 - 實景場景版</title>
+    <title>卡皮巴拉物理遊戲 - 專業控制版</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -68,7 +68,7 @@
             z-index: 100;
             transform: scaleX(-1);
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            display: none; /* 初始隱藏 */
+            display: none;
         }
         #game-canvas {
             width: 100vw;
@@ -92,6 +92,7 @@
             border-left: 6px solid #fbbf24;
             pointer-events: auto;
             max-width: 320px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
         .control-group {
             margin-top: 15px;
@@ -107,6 +108,7 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
+            transition: all 0.2s;
         }
         select:hover, button:hover {
             background: #57534e;
@@ -121,6 +123,7 @@
             font-family: monospace;
             color: #fbbf24;
             z-index: 110;
+            transition: opacity 0.3s ease;
         }
         .instruction-box {
             background: rgba(28, 25, 23, 0.6);
@@ -134,6 +137,38 @@
             color: #fde68a;
             margin-bottom: 4px;
         }
+        #start-camera-btn {
+            background: #fbbf24;
+            color: #1c1917;
+            font-weight: bold;
+            padding: 12px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+        }
+        /* 隱藏/顯示 UI 的輔助樣式 */
+        .ui-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateX(-20px);
+        }
+        #show-ui-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 120;
+            background: rgba(41, 37, 36, 0.8);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+            cursor: pointer;
+        }
         footer {
             position: fixed;
             bottom: 10px;
@@ -143,6 +178,7 @@
             z-index: 110;
             color: rgba(255,255,255,0.7);
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            transition: opacity 0.3s ease;
         }
         footer a { color: #fbbf24; text-decoration: none; font-weight: bold; }
     </style>
@@ -153,16 +189,26 @@
     <video id="ar-video" autoplay playsinline></video>
     <div id="steam-overlay"></div>
 
-    <div class="ui-overlay">
-        <div class="status-card">
+    <!-- 重新顯示 UI 的小按鈕 -->
+    <button id="show-ui-btn">顯示選單</button>
+
+    <div class="ui-overlay" id="main-ui">
+        <div class="status-card" id="control-card">
             <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 療癒空間</h1>
             
+            <div id="camera-setup-area" class="mb-3">
+                <label class="text-xs block mb-1 text-amber-100">選擇攝影機：</label>
+                <select id="camera-select" class="w-full mb-2">
+                    <option value="">正在載入鏡頭...</option>
+                </select>
+                <button id="start-camera-btn" class="w-full rounded-lg">啟動攝影機</button>
+            </div>
+
             <div class="instruction-box">
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
                 <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
                 <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
-                <div class="instruction-item">● 核心軟化：享受更細膩的變形手感</div>
-                <div class="instruction-item">● 自動重置：面積過小時自動恢復原狀</div>
+                <div class="instruction-item">● 沉浸模式：點擊下方按鈕可隱藏所有介面</div>
             </div>
             
             <div class="control-group">
@@ -183,6 +229,7 @@
                     <button id="reset-pos" class="flex-1">重置位置</button>
                     <button id="reset-size" class="flex-1">重置大小</button>
                 </div>
+                <button id="hide-ui-btn" class="w-full border-dashed border-amber-500/50 mt-1">隱藏所有介面</button>
             </div>
         </div>
     </div>
@@ -196,7 +243,7 @@
 
     <canvas id="game-canvas"></canvas>
 
-    <footer>
+    <footer id="game-footer">
         版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
     </footer>
 
@@ -218,6 +265,13 @@
         const camToggle = document.getElementById('cam-toggle');
         const camPreview = document.getElementById('video-preview-container');
         const areaVal = document.getElementById('area-val');
+        const startBtn = document.getElementById('start-camera-btn');
+        const cameraSelect = document.getElementById('camera-select');
+        const hideUiBtn = document.getElementById('hide-ui-btn');
+        const showUiBtn = document.getElementById('show-ui-btn');
+        const mainUi = document.getElementById('control-card');
+        const areaTag = document.getElementById('area-tag');
+        const footer = document.getElementById('game-footer');
 
         // 物理引擎
         const canvas = document.getElementById('game-canvas');
@@ -240,6 +294,46 @@
         const runner = Runner.create();
         Runner.run(runner, engine);
 
+        // UI 隱藏切換功能
+        function setUiVisibility(visible) {
+            if (visible) {
+                mainUi.classList.remove('ui-hidden');
+                areaTag.classList.remove('ui-hidden');
+                footer.classList.remove('ui-hidden');
+                showUiBtn.style.display = 'none';
+            } else {
+                mainUi.classList.add('ui-hidden');
+                areaTag.classList.add('ui-hidden');
+                footer.classList.add('ui-hidden');
+                showUiBtn.style.display = 'block';
+            }
+        }
+
+        hideUiBtn.onclick = () => setUiVisibility(false);
+        showUiBtn.onclick = () => setUiVisibility(true);
+
+        // 列出所有攝影機
+        async function getCameras() {
+            try {
+                // 請求權限以獲取裝置名稱
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `攝影機 ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error("無法列出攝影機:", err);
+                cameraSelect.innerHTML = '<option value="">無法偵測攝影機</option>';
+            }
+        }
+        getCameras();
+
         // 背景切換邏輯
         function updateBackground() {
             const mode = bgSelect.value;
@@ -257,12 +351,9 @@
             }
         }
         bgSelect.addEventListener('change', updateBackground);
-        
-        // 初始設定
         bgSelect.value = 'onsen';
         updateBackground();
 
-        // 相機預覽切換
         camToggle.addEventListener('change', () => {
             camPreview.style.display = camToggle.checked ? 'block' : 'none';
         });
@@ -332,9 +423,8 @@
         document.getElementById('reset-pos').onclick = resetPosition;
         document.getElementById('reset-size').onclick = resetSize;
 
-        // 物理循環與座標限制
+        // 物理循環
         Events.on(engine, 'afterUpdate', () => {
-            // 極低核心硬度
             const pad = 20, minR = 25; 
             ball.particles.forEach(p => {
                 const dx = p.position.x - ball.center.position.x;
@@ -350,7 +440,6 @@
                 if (x !== p.position.x || y !== p.position.y) Body.setPosition(p, { x, y });
             });
 
-            // 面積計算與自動恢復
             let area = 0;
             const pts = ball.particles;
             for (let i = 0; i < pts.length; i++) {
@@ -364,7 +453,7 @@
         // MediaPipe 手勢處理
         const videoElement = document.getElementById('input-video');
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
-        let lastResults = null, activePinch = null;
+        let lastResults = null, activePinch = null, cameraInstance = null;
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
@@ -419,11 +508,32 @@
             }
         });
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => { await hands.send({image: videoElement}); },
-            width: 640, height: 480
-        });
-        camera.start();
+        // 啟動與重啟攝影機
+        startBtn.onclick = async () => {
+            const deviceId = cameraSelect.value;
+            startBtn.innerText = "正在啟動...";
+            startBtn.disabled = true;
+            
+            if (cameraInstance) {
+                await cameraInstance.stop();
+            }
+
+            try {
+                cameraInstance = new Camera(videoElement, {
+                    onFrame: async () => { await hands.send({image: videoElement}); },
+                    width: 640, height: 480,
+                    deviceId: deviceId
+                });
+                await cameraInstance.start();
+                startBtn.innerText = "攝影機已連線";
+                startBtn.classList.remove('animation-pulse');
+                startBtn.style.background = '#4ade80';
+            } catch (err) {
+                console.error("無法開啟攝影機:", err);
+                startBtn.innerText = "連線失敗，請重試";
+                startBtn.disabled = false;
+            }
+        };
 
         // 渲染外觀
         Events.on(render, 'afterRender', () => {
@@ -487,7 +597,7 @@
             createWalls();
         });
 
-        setTimeout(() => { resetPosition(); resetSize(); }, 1000);
+        setTimeout(() => { resetPosition(); resetSize(); }, 500);
     </script>
 </body>
 </html>
