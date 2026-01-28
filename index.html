@@ -204,7 +204,7 @@
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
                 <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
                 <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
-                <div class="instruction-item">● 經典還原：完全還原您最愛的面部特徵</div>
+                <div class="instruction-item">● 自動全螢幕：隱藏介面時進入沉浸模式</div>
                 <div class="instruction-item">● 貼合頭頂：耳朵精確貼合身體外邊緣</div>
             </div>
             
@@ -300,11 +300,19 @@
                 areaTag.classList.remove('ui-hidden');
                 footer.classList.remove('ui-hidden');
                 showUiBtn.style.display = 'none';
+                // 恢復 UI 時嘗試退出全螢幕
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => {});
+                }
             } else {
                 controlCard.classList.add('ui-hidden');
                 areaTag.classList.add('ui-hidden');
                 footer.classList.add('ui-hidden');
                 showUiBtn.style.display = 'block';
+                // 隱藏 UI 時進入全螢幕
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {});
+                }
             }
         }
 
@@ -419,8 +427,6 @@
             const W = window.innerWidth, H = window.innerHeight;
             const pad = 20, minR = 25; 
 
-            // 響應式 Y 座標限制：隨畫面高度改變
-            // 原本 700/650 在高度 800 時約為 87.5% 與 81.25%
             const maxYLimit = H * 0.875;
             const resetYTarget = H * 0.8125;
 
