@@ -419,10 +419,14 @@
             const W = window.innerWidth, H = window.innerHeight;
             const pad = 20, minR = 25; 
 
-            // 強制限制 Y 座標不可超過 700，超過則自動定位到 650
-            if (ball.center.position.y > 700) {
-                const dy = 650 - ball.center.position.y;
-                Body.setPosition(ball.center, { x: ball.center.position.x, y: 650 });
+            // 響應式 Y 座標限制：隨畫面高度改變
+            // 原本 700/650 在高度 800 時約為 87.5% 與 81.25%
+            const maxYLimit = H * 0.875;
+            const resetYTarget = H * 0.8125;
+
+            if (ball.center.position.y > maxYLimit) {
+                const dy = resetYTarget - ball.center.position.y;
+                Body.setPosition(ball.center, { x: ball.center.position.x, y: resetYTarget });
                 ball.particles.forEach(p => {
                     Body.setPosition(p, { x: p.position.x, y: p.position.y + dy });
                 });
