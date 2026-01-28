@@ -357,7 +357,7 @@
             camPreview.style.display = camToggle.checked ? 'block' : 'none';
         });
 
-        // 邊界鎖定 - 修正為動態移除而非全清
+        // 邊界鎖定
         let currentWalls = [];
         const wallThickness = 600;
         function createWalls() {
@@ -452,7 +452,8 @@
             }
             area = Math.abs(area) * 0.5;
             areaVal.innerText = Math.round(area);
-            if (area < 50) resetSize();
+            // 改成 500
+            if (area < 500) resetSize();
         });
 
         // MediaPipe 手勢處理
