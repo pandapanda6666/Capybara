@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡皮巴拉物理遊戲 - 專業控制版</title>
+    <title>捏卡皮巴拉...</title>
     <!-- 設定網頁圖標 -->
     <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -192,7 +192,7 @@
 
     <div class="ui-overlay" id="main-ui">
         <div class="status-card" id="control-card">
-            <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 療癒空間</h1>
+            <h1 class="text-xl font-bold text-amber-400 mb-1">捏卡皮巴拉...</h1>
             
             <div id="camera-setup-area" class="mb-3">
                 <label class="text-xs block mb-1 text-amber-100">選擇攝影機：</label>
@@ -428,6 +428,7 @@
             const W = window.innerWidth, H = window.innerHeight;
             const pad = 20, minR = 25; 
 
+            // 響應式 Y 座標限制
             const maxYLimit = H * 0.875;
             const resetYTarget = H * 0.8125;
 
@@ -538,6 +539,7 @@
             const ctx = render.context, pts = ball.particles, center = ball.center.position;
             const W = window.innerWidth, H = window.innerHeight;
 
+            // 1. 身體繪製
             ctx.beginPath();
             ctx.moveTo(pts[0].position.x, pts[0].position.y);
             for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
@@ -549,10 +551,12 @@
 
             const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
 
+            // 2. 五官繪製
             ctx.save();
             ctx.translate(center.x, center.y);
             ctx.rotate(bAngle);
 
+            // 耳朵：調整至頭部「上面」邊緣
             const drawEar = (side) => {
                 ctx.fillStyle = '#713f12';
                 ctx.beginPath();
@@ -564,21 +568,27 @@
             drawEar(-1);
             drawEar(1);
 
+            // 嘴巴 (吻部)：還原經典座標
             ctx.fillStyle = '#854d0e';
             ctx.beginPath();
             ctx.roundRect(-45, 5, 90, 35, 15);
             ctx.fill();
 
+            // 鼻孔：還原經典座標
             ctx.fillStyle = '#29180c';
             ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(10, 25, 4, 0, Math.PI * 2); ctx.fill();
 
+            // 眼睛：還原經典座標
             ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            // 左眼
             ctx.beginPath(); ctx.moveTo(-35, -15); ctx.lineTo(-20, -12); ctx.stroke();
+            // 右眼
             ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
             
             ctx.restore();
 
+            // 3. 橘子 (跟隨視覺最上方質點)
             let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
             const ox = topP.position.x, oy = topP.position.y - 12;
             ctx.fillStyle = '#f97316';
