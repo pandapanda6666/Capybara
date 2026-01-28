@@ -149,7 +149,6 @@
             70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
             100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
         }
-        /* 隱藏/顯示 UI 的輔助樣式 */
         .ui-hidden {
             opacity: 0 !important;
             pointer-events: none !important;
@@ -250,14 +249,12 @@
     <script>
         const { Engine, Render, Runner, World, Bodies, Composite, Constraint, Events, Vector, Body } = Matter;
 
-        // 場景圖片 URL
         const bgImages = {
             pool: 'https://www.ritagiang.com/files/articleFilesfinder/images/20150613_134817-1.jpg',
             onsen: 'https://images.storm.mg/gallery/201145/20190212-102833_U7321_M497924_6eda.jpg',
             land: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQedVDhKZfVjOlORwYqk1pqjnTo9elRJLHM1A&s'
         };
 
-        // 介面元素
         const bgLayer = document.getElementById('background-layer');
         const arVideo = document.getElementById('ar-video');
         const steamOverlay = document.getElementById('steam-overlay');
@@ -273,7 +270,6 @@
         const areaTag = document.getElementById('area-tag');
         const footer = document.getElementById('game-footer');
 
-        // 物理引擎
         const canvas = document.getElementById('game-canvas');
         const engine = Engine.create();
         const world = engine.world;
@@ -294,7 +290,6 @@
         const runner = Runner.create();
         Runner.run(runner, engine);
 
-        // UI 隱藏切換功能
         function setUiVisibility(visible) {
             if (visible) {
                 controlCard.classList.remove('ui-hidden');
@@ -312,7 +307,6 @@
         hideUiBtn.onclick = () => setUiVisibility(false);
         showUiBtn.onclick = () => setUiVisibility(true);
 
-        // 列出所有攝影機
         async function getCameras() {
             try {
                 await navigator.mediaDevices.getUserMedia({ video: true });
@@ -333,7 +327,6 @@
         }
         getCameras();
 
-        // 背景切換邏輯
         function updateBackground() {
             const mode = bgSelect.value;
             arVideo.style.display = 'none';
@@ -357,7 +350,6 @@
             camPreview.style.display = camToggle.checked ? 'block' : 'none';
         });
 
-        // 邊界鎖定
         let currentWalls = [];
         const wallThickness = 600;
         function createWalls() {
@@ -365,17 +357,18 @@
                 World.remove(world, currentWalls);
             }
             const opt = { isStatic: true, friction: 0.5, restitution: 0.7, render: { visible: false } };
+            const W = window.innerWidth;
+            const H = window.innerHeight;
             currentWalls = [
-                Bodies.rectangle(window.innerWidth / 2, window.innerHeight + wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
-                Bodies.rectangle(window.innerWidth / 2, -wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
-                Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt),
-                Bodies.rectangle(window.innerWidth + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt)
+                Bodies.rectangle(W / 2, H + wallThickness / 2, W + 2000, wallThickness, opt),
+                Bodies.rectangle(W / 2, -wallThickness / 2, W + 2000, wallThickness, opt),
+                Bodies.rectangle(-wallThickness / 2, H / 2, wallThickness, H + 2000, opt),
+                Bodies.rectangle(W + wallThickness / 2, H / 2, wallThickness, H + 2000, opt)
             ];
             World.add(world, currentWalls);
         }
         createWalls();
 
-        // 卡皮巴拉球
         function createCapybaraBall(xx, yy, radius, segments) {
             const particles = [];
             for (let i = 0; i < segments; i++) {
@@ -402,13 +395,18 @@
             return { particles, center, radius, composite };
         }
 
+        // 初始建立位置，我們會在接下來的 setTimeout 中再次強制重置
         let ball = createCapybaraBall(window.innerWidth / 2, window.innerHeight / 2, 140, 40);
 
         function resetPosition() {
             const xx = window.innerWidth / 2, yy = window.innerHeight / 2;
             const dx = xx - ball.center.position.x, dy = yy - ball.center.position.y;
             Body.setPosition(ball.center, { x: xx, y: yy });
-            ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy }));
+            Body.setVelocity(ball.center, { x: 0, y: 0 });
+            ball.particles.forEach(p => {
+                Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy });
+                Body.setVelocity(p, { x: 0, y: 0 });
+            });
         }
 
         function resetSize() {
@@ -452,11 +450,10 @@
             }
             area = Math.abs(area) * 0.5;
             areaVal.innerText = Math.round(area);
-            // 改成 500
-            if (area < 500) resetSize();
+            
+            if (area < 10000) resetSize();
         });
 
-        // MediaPipe 手勢處理
         const videoElement = document.getElementById('input-video');
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
         let lastResults = null, activePinch = null, cameraInstance = null;
@@ -514,23 +511,16 @@
             }
         });
 
-        // 啟動攝影機的核心函數
         async function runCamera() {
             const deviceId = cameraSelect.value;
             if (!deviceId) return;
-
             startBtn.innerText = "正在啟動...";
             startBtn.disabled = true;
-            
-            if (cameraInstance) {
-                await cameraInstance.stop();
-            }
-
+            if (cameraInstance) await cameraInstance.stop();
             try {
                 cameraInstance = new Camera(videoElement, {
                     onFrame: async () => { await hands.send({image: videoElement}); },
-                    width: 640, height: 480,
-                    deviceId: deviceId
+                    width: 640, height: 480, deviceId: deviceId
                 });
                 await cameraInstance.start();
                 startBtn.innerText = "攝影機已連線";
@@ -546,7 +536,6 @@
         startBtn.onclick = runCamera;
         cameraSelect.onchange = () => { if (cameraInstance) runCamera(); };
 
-        // 渲染外觀
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, pts = ball.particles, center = ball.center.position;
             const W = window.innerWidth, H = window.innerHeight;
@@ -561,7 +550,6 @@
             ctx.strokeStyle = '#452205'; ctx.lineWidth = 5; ctx.stroke();
 
             const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
-            
             const drawEar = (off) => {
                 const a = bAngle + off;
                 const ex = center.x + Math.cos(a) * (ball.radius * 0.95), ey = center.y + Math.sin(a) * (ball.radius * 0.95);
@@ -589,14 +577,10 @@
                 lastResults.multiHandLandmarks.forEach(lms => {
                     ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 4;
                     HAND_CONNECTIONS.forEach(([s, e]) => {
-                        ctx.beginPath();
-                        ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H);
-                        ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H);
-                        ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H); ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H); ctx.stroke();
                     });
                     lms.forEach(lm => {
-                        ctx.beginPath(); ctx.arc((1 - lm.x) * W, lm.y * H, 5, 0, Math.PI * 2);
-                        ctx.fillStyle = '#fff'; ctx.fill();
+                        ctx.beginPath(); ctx.arc((1 - lm.x) * W, lm.y * H, 5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
                     });
                 });
             }
@@ -608,9 +592,15 @@
             render.options.width = window.innerWidth;
             render.options.height = window.innerHeight;
             createWalls();
+            // 視窗調整大小後也自動重置一次位置
+            resetPosition();
         });
 
-        setTimeout(() => { resetPosition(); resetSize(); }, 500);
+        // 啟動後立刻進行多次重置，確保 Matter.js 引擎穩定後的初始位置正確
+        setTimeout(resetPosition, 100);
+        setTimeout(resetPosition, 500);
+        setTimeout(resetSize, 500);
+
     </script>
 </body>
 </html>
