@@ -17,7 +17,6 @@
             color: white;
             font-family: sans-serif;
         }
-        /* 背景層 */
         #background-layer {
             position: fixed;
             top: 0;
@@ -30,7 +29,6 @@
             background-repeat: no-repeat;
             transition: background-image 0.5s ease;
         }
-        /* AR 透視相機背景 */
         #ar-video {
             position: fixed;
             top: 0;
@@ -42,7 +40,6 @@
             transform: scaleX(-1);
             display: none;
         }
-        /* 溫泉蒸氣效果 */
         #steam-overlay {
             position: fixed;
             top: 0;
@@ -55,7 +52,6 @@
             z-index: 1;
             display: none;
         }
-        /* 相機預覽小窗 */
         #video-preview-container {
             position: fixed;
             bottom: 20px;
@@ -124,6 +120,8 @@
             color: #fbbf24;
             z-index: 110;
             transition: opacity 0.3s ease;
+            display: flex;
+            gap: 10px;
         }
         .instruction-box {
             background: rgba(28, 25, 23, 0.6);
@@ -206,18 +204,18 @@
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
                 <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
                 <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
-                <div class="instruction-item">● 自動切換：更改選擇後會自動刷新攝影機</div>
-                <div class="instruction-item">● 沉浸模式：點擊下方按鈕可隱藏所有介面</div>
+                <div class="instruction-item">● 經典還原：完全還原您最愛的面部特徵</div>
+                <div class="instruction-item">● 貼合頭頂：耳朵精確貼合身體外邊緣</div>
             </div>
             
             <div class="control-group">
                 <div>
                     <label class="text-xs block mb-1">場景切換：</label>
                     <select id="bg-select" class="w-full">
-                        <option value="onsen">溫暖溫泉 (圖片)</option>
-                        <option value="pool">清涼水池 (圖片)</option>
-                        <option value="land">青青草地 (圖片)</option>
-                        <option value="ar">透視模式 (AR相機)</option>
+                        <option value="onsen">溫暖溫泉</option>
+                        <option value="pool">清涼水池</option>
+                        <option value="land">青青草地</option>
+                        <option value="ar">透視模式</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
@@ -233,7 +231,11 @@
         </div>
     </div>
 
-    <div id="area-tag">面積: <span id="area-val">0</span> px</div>
+    <div id="area-tag">
+        <span>面積: <span id="area-val">0</span> px</span>
+        <span>X: <span id="pos-x">0</span></span>
+        <span>Y: <span id="pos-y">0</span></span>
+    </div>
 
     <div id="video-preview-container">
         <video id="input-video" class="hidden"></video>
@@ -262,6 +264,8 @@
         const camToggle = document.getElementById('cam-toggle');
         const camPreview = document.getElementById('video-preview-container');
         const areaVal = document.getElementById('area-val');
+        const posXVal = document.getElementById('pos-x');
+        const posYVal = document.getElementById('pos-y');
         const startBtn = document.getElementById('start-camera-btn');
         const cameraSelect = document.getElementById('camera-select');
         const hideUiBtn = document.getElementById('hide-ui-btn');
@@ -312,7 +316,6 @@
                 await navigator.mediaDevices.getUserMedia({ video: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
                 cameraSelect.innerHTML = '';
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
@@ -332,14 +335,11 @@
             arVideo.style.display = 'none';
             steamOverlay.style.display = 'none';
             bgLayer.style.backgroundImage = 'none';
-
             if (mode === 'ar') {
                 arVideo.style.display = 'block';
             } else {
                 bgLayer.style.backgroundImage = `url('${bgImages[mode]}')`;
-                if (mode === 'onsen') {
-                    steamOverlay.style.display = 'block';
-                }
+                if (mode === 'onsen') steamOverlay.style.display = 'block';
             }
         }
         bgSelect.addEventListener('change', updateBackground);
@@ -353,12 +353,9 @@
         let currentWalls = [];
         const wallThickness = 600;
         function createWalls() {
-            if (currentWalls.length > 0) {
-                World.remove(world, currentWalls);
-            }
+            if (currentWalls.length > 0) World.remove(world, currentWalls);
             const opt = { isStatic: true, friction: 0.5, restitution: 0.7, render: { visible: false } };
-            const W = window.innerWidth;
-            const H = window.innerHeight;
+            const W = window.innerWidth, H = window.innerHeight;
             currentWalls = [
                 Bodies.rectangle(W / 2, H + wallThickness / 2, W + 2000, wallThickness, opt),
                 Bodies.rectangle(W / 2, -wallThickness / 2, W + 2000, wallThickness, opt),
@@ -395,18 +392,13 @@
             return { particles, center, radius, composite };
         }
 
-        // 初始建立位置，我們會在接下來的 setTimeout 中再次強制重置
         let ball = createCapybaraBall(window.innerWidth / 2, window.innerHeight / 2, 140, 40);
 
         function resetPosition() {
             const xx = window.innerWidth / 2, yy = window.innerHeight / 2;
             const dx = xx - ball.center.position.x, dy = yy - ball.center.position.y;
             Body.setPosition(ball.center, { x: xx, y: yy });
-            Body.setVelocity(ball.center, { x: 0, y: 0 });
-            ball.particles.forEach(p => {
-                Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy });
-                Body.setVelocity(p, { x: 0, y: 0 });
-            });
+            ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy }));
         }
 
         function resetSize() {
@@ -423,15 +415,21 @@
         document.getElementById('reset-pos').onclick = resetPosition;
         document.getElementById('reset-size').onclick = resetSize;
 
-        // 物理循環
         Events.on(engine, 'afterUpdate', () => {
-            const W = window.innerWidth;
-            const H = window.innerHeight;
+            const W = window.innerWidth, H = window.innerHeight;
             const pad = 20, minR = 25; 
-            
+
+            // 強制限制 Y 座標不可超過 700，超過則自動定位到 650
+            if (ball.center.position.y > 700) {
+                const dy = 650 - ball.center.position.y;
+                Body.setPosition(ball.center, { x: ball.center.position.x, y: 650 });
+                ball.particles.forEach(p => {
+                    Body.setPosition(p, { x: p.position.x, y: p.position.y + dy });
+                });
+            }
+
             ball.particles.forEach(p => {
-                const dx = p.position.x - ball.center.position.x;
-                const dy = p.position.y - ball.center.position.y;
+                const dx = p.position.x - ball.center.position.x, dy = p.position.y - ball.center.position.y;
                 const d = Math.hypot(dx, dy);
                 if (d < minR) {
                     const a = Math.atan2(dy, dx);
@@ -442,7 +440,6 @@
                 if (y < pad) y = pad; if (y > H - pad) y = H - pad;
                 if (x !== p.position.x || y !== p.position.y) Body.setPosition(p, { x, y });
             });
-
             let area = 0;
             const pts = ball.particles;
             for (let i = 0; i < pts.length; i++) {
@@ -451,6 +448,9 @@
             area = Math.abs(area) * 0.5;
             areaVal.innerText = Math.round(area);
             
+            posXVal.innerText = Math.round(ball.center.position.x);
+            posYVal.innerText = Math.round(ball.center.position.y);
+
             if (area < 10000) resetSize();
         });
 
@@ -466,37 +466,27 @@
             videoPreviewCtx.clearRect(0, 0, 200, 150);
             videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
             videoPreviewCtx.restore();
-            
-            if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) {
-                arVideo.srcObject = videoElement.srcObject;
-            }
-
+            if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) arVideo.srcObject = videoElement.srcObject;
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lms = results.multiHandLandmarks[0];
                 const W = window.innerWidth, H = window.innerHeight;
                 const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
-                
-                const thumb = getPx(4);
-                const tips = [8, 12, 16, 20].map(getPx);
+                const thumb = getPx(4), tips = [8, 12, 16, 20].map(getPx);
                 let pinchPos = null;
                 tips.forEach(t => { if (Math.hypot(thumb.x - t.x, thumb.y - t.y) < 55) pinchPos = { x: (thumb.x + t.x)/2, y: (thumb.y + t.y)/2 }; });
-
                 if (pinchPos) {
                     if (!activePinch) {
                         let closest = null, minDist = 160;
                         ball.particles.forEach(p => {
                             const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
-                            if (d < minDist) { minDist = d; closest = p; }
+                            if (d < minDist) { minDist = d, closest = p; }
                         });
                         if (closest) {
                             activePinch = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.35, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
                             World.add(world, activePinch);
                         }
                     } else activePinch.pointA = pinchPos;
-                } else {
-                    if (activePinch) { World.remove(world, activePinch); activePinch = null; }
-                }
-
+                } else if (activePinch) { World.remove(world, activePinch); activePinch = null; }
                 [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
                     ball.particles.forEach(p => {
                         const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
@@ -506,9 +496,7 @@
                         }
                     });
                 });
-            } else {
-                if (activePinch) { World.remove(world, activePinch); activePinch = null; }
-            }
+            } else if (activePinch) { World.remove(world, activePinch); activePinch = null; }
         });
 
         async function runCamera() {
@@ -532,7 +520,6 @@
                 startBtn.disabled = false;
             }
         }
-
         startBtn.onclick = runCamera;
         cameraSelect.onchange = () => { if (cameraInstance) runCamera(); };
 
@@ -550,28 +537,44 @@
             ctx.strokeStyle = '#452205'; ctx.lineWidth = 5; ctx.stroke();
 
             const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
-            const drawEar = (off) => {
-                const a = bAngle + off;
-                const ex = center.x + Math.cos(a) * (ball.radius * 0.95), ey = center.y + Math.sin(a) * (ball.radius * 0.95);
-                ctx.fillStyle = '#713f12'; ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#452205'; ctx.lineWidth = 2; ctx.stroke();
-            };
-            drawEar(-Math.PI * 0.75); drawEar(-Math.PI * 0.25);
 
             ctx.save();
-            ctx.translate(center.x, center.y); ctx.rotate(bAngle);
-            ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-45, 5, 90, 35, 15); ctx.fill();
-            ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.translate(center.x, center.y);
+            ctx.rotate(bAngle);
+
+            const drawEar = (side) => {
+                ctx.fillStyle = '#713f12';
+                ctx.beginPath();
+                ctx.arc(side * 55, -135, 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#452205'; ctx.lineWidth = 3;
+                ctx.stroke();
+            };
+            drawEar(-1);
+            drawEar(1);
+
+            ctx.fillStyle = '#854d0e';
+            ctx.beginPath();
+            ctx.roundRect(-45, 5, 90, 35, 15);
+            ctx.fill();
+
+            ctx.fillStyle = '#29180c';
+            ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(10, 25, 4, 0, Math.PI * 2); ctx.fill();
+
             ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 4; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(-35, -15); ctx.lineTo(-20, -12); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
+            
             ctx.restore();
 
             let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
             const ox = topP.position.x, oy = topP.position.y - 12;
-            ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#c2410c'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
 
             if (lastResults && lastResults.multiHandLandmarks) {
                 lastResults.multiHandLandmarks.forEach(lms => {
@@ -587,20 +590,14 @@
         });
 
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            render.options.width = window.innerWidth;
-            render.options.height = window.innerHeight;
-            createWalls();
-            // 視窗調整大小後也自動重置一次位置
-            resetPosition();
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            render.options.width = window.innerWidth; render.options.height = window.innerHeight;
+            createWalls(); resetPosition();
         });
 
-        // 啟動後立刻進行多次重置，確保 Matter.js 引擎穩定後的初始位置正確
         setTimeout(resetPosition, 100);
         setTimeout(resetPosition, 500);
         setTimeout(resetSize, 500);
-
     </script>
 </body>
 </html>
