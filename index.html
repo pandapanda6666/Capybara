@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>捏卡皮巴拉...</title>
+    <title>卡皮巴拉物理遊戲 - 專業控制版</title>
+    <!-- 設定網頁圖標 -->
+    <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -190,7 +192,7 @@
 
     <div class="ui-overlay" id="main-ui">
         <div class="status-card" id="control-card">
-            <h1 class="text-xl font-bold text-amber-400 mb-1">捏卡皮巴拉...</h1>
+            <h1 class="text-xl font-bold text-amber-400 mb-1">Capybara 療癒空間</h1>
             
             <div id="camera-setup-area" class="mb-3">
                 <label class="text-xs block mb-1 text-amber-100">選擇攝影機：</label>
@@ -251,10 +253,11 @@
     <script>
         const { Engine, Render, Runner, World, Bodies, Composite, Constraint, Events, Vector, Body } = Matter;
 
+        // 設定背景圖片路徑
         const bgImages = {
-            pool: 'https://www.ritagiang.com/files/articleFilesfinder/images/20150613_134817-1.jpg',
-            onsen: 'https://images.storm.mg/gallery/201145/20190212-102833_U7321_M497924_6eda.jpg',
-            land: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQedVDhKZfVjOlORwYqk1pqjnTo9elRJLHM1A&s'
+            pool: '1.jpg',
+            onsen: '2.jpg',
+            land: '3.jpg'
         };
 
         const bgLayer = document.getElementById('background-layer');
@@ -300,7 +303,6 @@
                 areaTag.classList.remove('ui-hidden');
                 footer.classList.remove('ui-hidden');
                 showUiBtn.style.display = 'none';
-                // 恢復 UI 時嘗試退出全螢幕
                 if (document.fullscreenElement) {
                     document.exitFullscreen().catch(err => {});
                 }
@@ -309,7 +311,6 @@
                 areaTag.classList.add('ui-hidden');
                 footer.classList.add('ui-hidden');
                 showUiBtn.style.display = 'block';
-                // 隱藏 UI 時進入全螢幕
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen().catch(err => {});
                 }
