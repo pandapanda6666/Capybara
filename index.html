@@ -189,7 +189,6 @@
     <video id="ar-video" autoplay playsinline></video>
     <div id="steam-overlay"></div>
 
-    <!-- 重新顯示 UI 的小按鈕 -->
     <button id="show-ui-btn">顯示選單</button>
 
     <div class="ui-overlay" id="main-ui">
@@ -208,6 +207,7 @@
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
                 <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
                 <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
+                <div class="instruction-item">● 自動切換：更改選擇後會自動刷新攝影機</div>
                 <div class="instruction-item">● 沉浸模式：點擊下方按鈕可隱藏所有介面</div>
             </div>
             
@@ -269,7 +269,7 @@
         const cameraSelect = document.getElementById('camera-select');
         const hideUiBtn = document.getElementById('hide-ui-btn');
         const showUiBtn = document.getElementById('show-ui-btn');
-        const mainUi = document.getElementById('control-card');
+        const controlCard = document.getElementById('control-card');
         const areaTag = document.getElementById('area-tag');
         const footer = document.getElementById('game-footer');
 
@@ -297,12 +297,12 @@
         // UI 隱藏切換功能
         function setUiVisibility(visible) {
             if (visible) {
-                mainUi.classList.remove('ui-hidden');
+                controlCard.classList.remove('ui-hidden');
                 areaTag.classList.remove('ui-hidden');
                 footer.classList.remove('ui-hidden');
                 showUiBtn.style.display = 'none';
             } else {
-                mainUi.classList.add('ui-hidden');
+                controlCard.classList.add('ui-hidden');
                 areaTag.classList.add('ui-hidden');
                 footer.classList.add('ui-hidden');
                 showUiBtn.style.display = 'block';
@@ -315,7 +315,6 @@
         // 列出所有攝影機
         async function getCameras() {
             try {
-                // 請求權限以獲取裝置名稱
                 await navigator.mediaDevices.getUserMedia({ video: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -358,18 +357,21 @@
             camPreview.style.display = camToggle.checked ? 'block' : 'none';
         });
 
-        // 邊界鎖定
+        // 邊界鎖定 - 修正為動態移除而非全清
+        let currentWalls = [];
         const wallThickness = 600;
         function createWalls() {
-            World.clear(world, false); 
+            if (currentWalls.length > 0) {
+                World.remove(world, currentWalls);
+            }
             const opt = { isStatic: true, friction: 0.5, restitution: 0.7, render: { visible: false } };
-            const walls = [
+            currentWalls = [
                 Bodies.rectangle(window.innerWidth / 2, window.innerHeight + wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
                 Bodies.rectangle(window.innerWidth / 2, -wallThickness / 2, window.innerWidth + 2000, wallThickness, opt),
                 Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt),
                 Bodies.rectangle(window.innerWidth + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight + 2000, opt)
             ];
-            World.add(world, walls);
+            World.add(world, currentWalls);
         }
         createWalls();
 
@@ -425,7 +427,10 @@
 
         // 物理循環
         Events.on(engine, 'afterUpdate', () => {
+            const W = window.innerWidth;
+            const H = window.innerHeight;
             const pad = 20, minR = 25; 
+            
             ball.particles.forEach(p => {
                 const dx = p.position.x - ball.center.position.x;
                 const dy = p.position.y - ball.center.position.y;
@@ -435,8 +440,8 @@
                     Body.setPosition(p, { x: ball.center.position.x + Math.cos(a) * minR, y: ball.center.position.y + Math.sin(a) * minR });
                 }
                 let x = p.position.x, y = p.position.y;
-                if (x < pad) x = pad; if (x > window.innerWidth - pad) x = window.innerWidth - pad;
-                if (y < pad) y = pad; if (y > window.innerHeight - pad) y = window.innerHeight - pad;
+                if (x < pad) x = pad; if (x > W - pad) x = W - pad;
+                if (y < pad) y = pad; if (y > H - pad) y = H - pad;
                 if (x !== p.position.x || y !== p.position.y) Body.setPosition(p, { x, y });
             });
 
@@ -508,9 +513,11 @@
             }
         });
 
-        // 啟動與重啟攝影機
-        startBtn.onclick = async () => {
+        // 啟動攝影機的核心函數
+        async function runCamera() {
             const deviceId = cameraSelect.value;
+            if (!deviceId) return;
+
             startBtn.innerText = "正在啟動...";
             startBtn.disabled = true;
             
@@ -526,18 +533,22 @@
                 });
                 await cameraInstance.start();
                 startBtn.innerText = "攝影機已連線";
-                startBtn.classList.remove('animation-pulse');
+                startBtn.style.animation = 'none';
                 startBtn.style.background = '#4ade80';
             } catch (err) {
                 console.error("無法開啟攝影機:", err);
                 startBtn.innerText = "連線失敗，請重試";
                 startBtn.disabled = false;
             }
-        };
+        }
+
+        startBtn.onclick = runCamera;
+        cameraSelect.onchange = () => { if (cameraInstance) runCamera(); };
 
         // 渲染外觀
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, pts = ball.particles, center = ball.center.position;
+            const W = window.innerWidth, H = window.innerHeight;
 
             ctx.beginPath();
             ctx.moveTo(pts[0].position.x, pts[0].position.y);
@@ -574,7 +585,6 @@
             ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
 
             if (lastResults && lastResults.multiHandLandmarks) {
-                const W = window.innerWidth, H = window.innerHeight;
                 lastResults.multiHandLandmarks.forEach(lms => {
                     ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 4;
                     HAND_CONNECTIONS.forEach(([s, e]) => {
@@ -592,8 +602,10 @@
         });
 
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            render.options.width = window.innerWidth; render.options.height = window.innerHeight;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            render.options.width = window.innerWidth;
+            render.options.height = window.innerHeight;
             createWalls();
         });
 
