@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>捏卡皮巴拉...</title>
+    <title>捏卡皮巴拉</title>
     <!-- 設定網頁圖標 -->
     <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -192,7 +192,7 @@
 
     <div class="ui-overlay" id="main-ui">
         <div class="status-card" id="control-card">
-            <h1 class="text-xl font-bold text-amber-400 mb-1">捏卡皮巴拉...</h1>
+            <h1 class="text-xl font-bold text-amber-400 mb-1">捏卡皮巴拉</h1>
             
             <div id="camera-setup-area" class="mb-3">
                 <label class="text-xs block mb-1 text-amber-100">選擇攝影機：</label>
@@ -204,10 +204,10 @@
 
             <div class="instruction-box">
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
-                <div class="instruction-item">● 隨機捏合：指尖靠近拇指即可抓取</div>
-                <div class="instruction-item">● 實體按壓：手指靠近臉部進行揉搓</div>
+                <div class="instruction-item">● 雙手互動：支援同時兩隻手捏卡皮巴拉</div>
+                <div class="instruction-item">● 身體拉長：雙手捏住兩端後向外拉扯</div>
                 <div class="instruction-item">● 自動全螢幕：隱藏介面時進入沉浸模式</div>
-                <div class="instruction-item">● 貼合頭頂：耳朵精確貼合身體外邊緣</div>
+                <div class="instruction-item">● 切換刷新：更改鏡頭後點擊啟動即可切換</div>
             </div>
             
             <div class="control-group">
@@ -253,12 +253,8 @@
     <script>
         const { Engine, Render, Runner, World, Bodies, Composite, Constraint, Events, Vector, Body } = Matter;
 
-        // 設定背景圖片路徑
-        const bgImages = {
-            pool: '1.jpg',
-            onsen: '2.jpg',
-            land: '3.jpg'
-        };
+        // 背景圖片路徑
+        const bgImages = { pool: '1.jpg', onsen: '2.jpg', land: '3.jpg' };
 
         const bgLayer = document.getElementById('background-layer');
         const arVideo = document.getElementById('ar-video');
@@ -283,14 +279,8 @@
         engine.gravity.y = 1.0;
 
         const render = Render.create({
-            canvas: canvas,
-            engine: engine,
-            options: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                wireframes: false,
-                background: 'transparent'
-            }
+            canvas: canvas, engine: engine,
+            options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: 'transparent' }
         });
 
         Render.run(render);
@@ -303,17 +293,13 @@
                 areaTag.classList.remove('ui-hidden');
                 footer.classList.remove('ui-hidden');
                 showUiBtn.style.display = 'none';
-                if (document.fullscreenElement) {
-                    document.exitFullscreen().catch(err => {});
-                }
+                if (document.fullscreenElement) document.exitFullscreen().catch(e => {});
             } else {
                 controlCard.classList.add('ui-hidden');
                 areaTag.classList.add('ui-hidden');
                 footer.classList.add('ui-hidden');
                 showUiBtn.style.display = 'block';
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(err => {});
-                }
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => {});
             }
         }
 
@@ -333,11 +319,23 @@
                     cameraSelect.appendChild(option);
                 });
             } catch (err) {
-                console.error("無法列出攝影機:", err);
                 cameraSelect.innerHTML = '<option value="">無法偵測攝影機</option>';
             }
         }
         getCameras();
+
+        // 監聽攝影機切換
+        cameraSelect.onchange = async () => {
+            if (cameraInstance) {
+                await cameraInstance.stop();
+                cameraInstance = null;
+            }
+            // 重置啟動按鈕狀態
+            startBtn.innerText = "啟動攝影機";
+            startBtn.disabled = false;
+            startBtn.style.animation = 'pulse 2s infinite';
+            startBtn.style.background = '#fbbf24';
+        };
 
         function updateBackground() {
             const mode = bgSelect.value;
@@ -427,17 +425,13 @@
         Events.on(engine, 'afterUpdate', () => {
             const W = window.innerWidth, H = window.innerHeight;
             const pad = 20, minR = 25; 
-
-            // 響應式 Y 座標限制
             const maxYLimit = H * 0.875;
             const resetYTarget = H * 0.8125;
 
             if (ball.center.position.y > maxYLimit) {
                 const dy = resetYTarget - ball.center.position.y;
                 Body.setPosition(ball.center, { x: ball.center.position.x, y: resetYTarget });
-                ball.particles.forEach(p => {
-                    Body.setPosition(p, { x: p.position.x, y: p.position.y + dy });
-                });
+                ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x, y: p.position.y + dy }));
             }
 
             ball.particles.forEach(p => {
@@ -459,56 +453,86 @@
             }
             area = Math.abs(area) * 0.5;
             areaVal.innerText = Math.round(area);
-            
             posXVal.innerText = Math.round(ball.center.position.x);
             posYVal.innerText = Math.round(ball.center.position.y);
-
             if (area < 10000) resetSize();
         });
 
         const videoElement = document.getElementById('input-video');
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
-        let lastResults = null, activePinch = null, cameraInstance = null;
+        let lastResults = null, cameraInstance = null;
+        
+        // 使用 Map 追蹤多隻手的抓取約束
+        const activePinches = new Map();
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+        
         hands.onResults((results) => {
             lastResults = results;
             videoPreviewCtx.save();
             videoPreviewCtx.clearRect(0, 0, 200, 150);
             videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
             videoPreviewCtx.restore();
+            
             if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) arVideo.srcObject = videoElement.srcObject;
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const lms = results.multiHandLandmarks[0];
                 const W = window.innerWidth, H = window.innerHeight;
-                const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
-                const thumb = getPx(4), tips = [8, 12, 16, 20].map(getPx);
-                let pinchPos = null;
-                tips.forEach(t => { if (Math.hypot(thumb.x - t.x, thumb.y - t.y) < 55) pinchPos = { x: (thumb.x + t.x)/2, y: (thumb.y + t.y)/2 }; });
-                if (pinchPos) {
-                    if (!activePinch) {
-                        let closest = null, minDist = 160;
+                const currentHandsIndices = new Set();
+
+                results.multiHandLandmarks.forEach((lms, handIdx) => {
+                    currentHandsIndices.add(handIdx);
+                    const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
+                    const thumb = getPx(4), tips = [8, 12, 16, 20].map(getPx);
+                    let pinchPos = null;
+                    tips.forEach(t => { if (Math.hypot(thumb.x - t.x, thumb.y - t.y) < 60) pinchPos = { x: (thumb.x + t.x)/2, y: (thumb.y + t.y)/2 }; });
+
+                    if (pinchPos) {
+                        if (!activePinches.has(handIdx)) {
+                            let closest = null, minDist = 180;
+                            ball.particles.forEach(p => {
+                                const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
+                                if (d < minDist) { minDist = d, closest = p; }
+                            });
+                            if (closest) {
+                                const constraint = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.4, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
+                                World.add(world, constraint);
+                                activePinches.set(handIdx, constraint);
+                            }
+                        } else {
+                            activePinches.get(handIdx).pointA = pinchPos;
+                        }
+                    } else {
+                        if (activePinches.has(handIdx)) {
+                            World.remove(world, activePinches.get(handIdx));
+                            activePinches.delete(handIdx);
+                        }
+                    }
+
+                    // 實體按壓推力 (揉搓感)
+                    [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
                         ball.particles.forEach(p => {
-                            const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
-                            if (d < minDist) { minDist = d, closest = p; }
+                            const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
+                            if (d < 110) {
+                                const a = Math.atan2(p.position.y - tip.y, p.position.x - tip.x);
+                                Body.applyForce(p, p.position, { x: Math.cos(a) * 0.025 * (1 - d/110), y: Math.sin(a) * 0.025 * (1 - d/110) });
+                            }
                         });
-                        if (closest) {
-                            activePinch = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.35, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
-                            World.add(world, activePinch);
-                        }
-                    } else activePinch.pointA = pinchPos;
-                } else if (activePinch) { World.remove(world, activePinch); activePinch = null; }
-                [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
-                    ball.particles.forEach(p => {
-                        const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
-                        if (d < 110) {
-                            const a = Math.atan2(p.position.y - tip.y, p.position.x - tip.x);
-                            Body.applyForce(p, p.position, { x: Math.cos(a) * 0.025 * (1 - d/110), y: Math.sin(a) * 0.025 * (1 - d/110) });
-                        }
                     });
                 });
-            } else if (activePinch) { World.remove(world, activePinch); activePinch = null; }
+
+                // 清理消失的手
+                for (let handIdx of activePinches.keys()) {
+                    if (!currentHandsIndices.has(handIdx)) {
+                        World.remove(world, activePinches.get(handIdx));
+                        activePinches.delete(handIdx);
+                    }
+                }
+            } else {
+                activePinches.forEach(c => World.remove(world, c));
+                activePinches.clear();
+            }
         });
 
         async function runCamera() {
@@ -527,19 +551,16 @@
                 startBtn.style.animation = 'none';
                 startBtn.style.background = '#4ade80';
             } catch (err) {
-                console.error("無法開啟攝影機:", err);
                 startBtn.innerText = "連線失敗，請重試";
                 startBtn.disabled = false;
             }
         }
         startBtn.onclick = runCamera;
-        cameraSelect.onchange = () => { if (cameraInstance) runCamera(); };
 
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, pts = ball.particles, center = ball.center.position;
             const W = window.innerWidth, H = window.innerHeight;
 
-            // 1. 身體繪製
             ctx.beginPath();
             ctx.moveTo(pts[0].position.x, pts[0].position.y);
             for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
@@ -551,51 +572,30 @@
 
             const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
 
-            // 2. 五官繪製
             ctx.save();
             ctx.translate(center.x, center.y);
             ctx.rotate(bAngle);
 
-            // 耳朵：調整至頭部「上面」邊緣
             const drawEar = (side) => {
-                ctx.fillStyle = '#713f12';
-                ctx.beginPath();
+                ctx.fillStyle = '#713f12'; ctx.beginPath();
                 ctx.arc(side * 55, -135, 18, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#452205'; ctx.lineWidth = 3;
-                ctx.stroke();
+                ctx.fill(); ctx.strokeStyle = '#452205'; ctx.lineWidth = 3; ctx.stroke();
             };
-            drawEar(-1);
-            drawEar(1);
+            drawEar(-1); drawEar(1);
 
-            // 嘴巴 (吻部)：還原經典座標
-            ctx.fillStyle = '#854d0e';
-            ctx.beginPath();
-            ctx.roundRect(-45, 5, 90, 35, 15);
-            ctx.fill();
-
-            // 鼻孔：還原經典座標
-            ctx.fillStyle = '#29180c';
-            ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-45, 5, 90, 35, 15); ctx.fill();
+            ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(10, 25, 4, 0, Math.PI * 2); ctx.fill();
-
-            // 眼睛：還原經典座標
             ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-            // 左眼
             ctx.beginPath(); ctx.moveTo(-35, -15); ctx.lineTo(-20, -12); ctx.stroke();
-            // 右眼
             ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
-            
             ctx.restore();
 
-            // 3. 橘子 (跟隨視覺最上方質點)
             let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
             const ox = topP.position.x, oy = topP.position.y - 12;
-            ctx.fillStyle = '#f97316';
-            ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#c2410c'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#16a34a';
-            ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
 
             if (lastResults && lastResults.multiHandLandmarks) {
                 lastResults.multiHandLandmarks.forEach(lms => {
