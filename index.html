@@ -204,8 +204,8 @@
 
             <div class="instruction-box">
                 <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
-                <div class="instruction-item">● 雙手互動：支援同時兩隻手捏卡皮巴拉</div>
-                <div class="instruction-item">● 身體拉長：雙手捏住兩端後向外拉扯</div>
+                <div class="instruction-item">● 靈敏捏合：偵測大拇指與食指</div>
+                <div class="instruction-item">● 雙手拉長：左右手可同時抓取拉扯</div>
                 <div class="instruction-item">● 自動全螢幕：隱藏介面時進入沉浸模式</div>
                 <div class="instruction-item">● 切換刷新：更改鏡頭後點擊啟動即可切換</div>
             </div>
@@ -324,13 +324,12 @@
         }
         getCameras();
 
-        // 監聽攝影機切換
+        // 監聽攝影機切換：停止目前鏡頭並重置按鈕
         cameraSelect.onchange = async () => {
             if (cameraInstance) {
                 await cameraInstance.stop();
                 cameraInstance = null;
             }
-            // 重置啟動按鈕狀態
             startBtn.innerText = "啟動攝影機";
             startBtn.disabled = false;
             startBtn.style.animation = 'pulse 2s infinite';
@@ -462,7 +461,7 @@
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
         let lastResults = null, cameraInstance = null;
         
-        // 使用 Map 追蹤多隻手的抓取約束
+        // 追蹤多指捏合狀態
         const activePinches = new Map();
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
@@ -484,9 +483,14 @@
                 results.multiHandLandmarks.forEach((lms, handIdx) => {
                     currentHandsIndices.add(handIdx);
                     const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
-                    const thumb = getPx(4), tips = [8, 12, 16, 20].map(getPx);
-                    let pinchPos = null;
-                    tips.forEach(t => { if (Math.hypot(thumb.x - t.x, thumb.y - t.y) < 60) pinchPos = { x: (thumb.x + t.x)/2, y: (thumb.y + t.y)/2 }; });
+                    
+                    // 優化靈敏度：專注偵測拇指 (4) 與 食指 (8)
+                    const thumb = getPx(4);
+                    const indexFinger = getPx(8);
+                    const dist = Math.hypot(thumb.x - indexFinger.x, thumb.y - indexFinger.y);
+                    
+                    // 捏合閾值設為 55 像素，提高靈敏度
+                    let pinchPos = (dist < 55) ? { x: (thumb.x + indexFinger.x) / 2, y: (thumb.y + indexFinger.y) / 2 } : null;
 
                     if (pinchPos) {
                         if (!activePinches.has(handIdx)) {
@@ -496,7 +500,8 @@
                                 if (d < minDist) { minDist = d, closest = p; }
                             });
                             if (closest) {
-                                const constraint = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.4, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
+                                // 提高抓取強度 stiffness 使其更穩定
+                                const constraint = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.5, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
                                 World.add(world, constraint);
                                 activePinches.set(handIdx, constraint);
                             }
@@ -510,7 +515,7 @@
                         }
                     }
 
-                    // 實體按壓推力 (揉搓感)
+                    // 實體揉搓推力
                     [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
                         ball.particles.forEach(p => {
                             const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
@@ -551,7 +556,7 @@
                 startBtn.style.animation = 'none';
                 startBtn.style.background = '#4ade80';
             } catch (err) {
-                startBtn.innerText = "連線失敗，請重試";
+                startBtn.innerText = "連線失敗";
                 startBtn.disabled = false;
             }
         }
@@ -601,7 +606,10 @@
                 lastResults.multiHandLandmarks.forEach(lms => {
                     ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 4;
                     HAND_CONNECTIONS.forEach(([s, e]) => {
-                        ctx.beginPath(); ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H); ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H); ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H);
+                        ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H);
+                        ctx.stroke();
                     });
                     lms.forEach(lm => {
                         ctx.beginPath(); ctx.arc((1 - lm.x) * W, lm.y * H, 5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
