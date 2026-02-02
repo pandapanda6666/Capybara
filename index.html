@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>捏卡皮巴拉</title>
-    <!-- 設定網頁圖標 -->
+    <title>捏卡皮巴拉 - 軟Ｑ實體版</title>
     <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -102,7 +101,7 @@
             background: #44403c;
             color: #fde68a;
             border: 1px solid #57534e;
-            padding: 6px 12px;
+            padding: 8px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
@@ -111,31 +110,20 @@
         select:hover, button:hover {
             background: #57534e;
         }
-        #area-tag {
+        #info-tag {
             position: fixed;
             bottom: 20px;
             left: 20px;
             background: rgba(0,0,0,0.6);
-            padding: 5px 12px;
+            padding: 8px 16px;
             border-radius: 20px;
             font-family: monospace;
             color: #fbbf24;
             z-index: 110;
             transition: opacity 0.3s ease;
             display: flex;
-            gap: 10px;
-        }
-        .instruction-box {
-            background: rgba(28, 25, 23, 0.6);
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            border: 1px solid rgba(251, 191, 36, 0.3);
-        }
-        .instruction-item {
-            font-size: 13px;
-            color: #fde68a;
-            margin-bottom: 4px;
+            flex-direction: column;
+            gap: 4px;
         }
         #start-camera-btn {
             background: #fbbf24;
@@ -168,6 +156,10 @@
             display: none;
             cursor: pointer;
         }
+        #bandaid-btn { background: #fde68a; color: #854d0e; font-weight: bold; }
+        #add-capybara-btn { background: #4ade80; color: #064e3b; font-weight: bold; }
+        #eat-btn { background: #f87171; color: #7f1d1d; font-weight: bold; }
+        
         footer {
             position: fixed;
             bottom: 10px;
@@ -202,41 +194,46 @@
                 <button id="start-camera-btn" class="w-full rounded-lg">啟動攝影機</button>
             </div>
 
-            <div class="instruction-box">
-                <p class="text-xs font-bold text-amber-200 mb-2">遊戲說明：</p>
-                <div class="instruction-item">● 靈敏捏合：偵測大拇指與食指</div>
-                <div class="instruction-item">● 雙手拉長：左右手可同時抓取拉扯</div>
-                <div class="instruction-item">● 自動全螢幕：隱藏介面時進入沉浸模式</div>
-                <div class="instruction-item">● 切換刷新：更改鏡頭後點擊啟動即可切換</div>
+            <div class="instruction-box bg-orange-900/20 p-2 rounded-lg border border-orange-500/30 mb-2">
+                <p class="text-xs font-bold text-orange-200 mb-1">物理筆記：</p>
+                <div class="text-[11px] text-orange-100">● 軟Ｑ實體：現在可以壓扁拉長，且能穩定堆疊</div>
+                <div class="text-[11px] text-orange-100">● 捏臉：用手捏住邊緣粒子即可拉扯形變</div>
+                <div class="text-[11px] text-orange-100">● 支撐：內部有硬核支撐，疊高高不再重疊</div>
             </div>
             
             <div class="control-group">
+                <button id="add-capybara-btn">✨ 新增卡皮巴拉</button>
+                <div class="flex gap-1">
+                    <button id="bandaid-btn" class="flex-1">🩹 貼OK繃</button>
+                    <button id="eat-btn" class="flex-1">🍴 吃掉熟水豚</button>
+                </div>
                 <div>
                     <label class="text-xs block mb-1">場景切換：</label>
                     <select id="bg-select" class="w-full">
                         <option value="onsen">溫暖溫泉</option>
                         <option value="pool">清涼水池</option>
                         <option value="land">青青草地</option>
-                        <option value="ar">透視模式</option>
+                        <option value="ar">透視模式 (AR)</option>
                     </select>
                 </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="cam-toggle">
-                    <label for="cam-toggle" class="text-xs cursor-pointer">顯示相機小窗</label>
-                </div>
                 <div class="flex gap-2">
-                    <button id="reset-pos" class="flex-1">重置位置</button>
-                    <button id="reset-size" class="flex-1">重置大小</button>
+                    <button id="reset-pos" class="flex-1 text-xs">重置位置</button>
+                    <button id="reset-size" class="flex-1 text-xs">重置大小</button>
                 </div>
-                <button id="hide-ui-btn" class="w-full border-dashed border-amber-500/50 mt-1">隱藏所有介面</button>
+                <button id="hide-ui-btn" class="w-full border-dashed border-amber-500/50 mt-1 text-xs">隱藏介面並全螢幕</button>
             </div>
         </div>
     </div>
 
-    <div id="area-tag">
-        <span>面積: <span id="area-val">0</span> px</span>
-        <span>X: <span id="pos-x">0</span></span>
-        <span>Y: <span id="pos-y">0</span></span>
+    <div id="info-tag">
+        <div class="flex gap-4">
+            <span>外殼面積: <span id="area-val">0</span> px</span>
+            <span style="color: #f87171;">飢餓值: <span id="hunger-val">0</span></span>
+        </div>
+        <div class="flex gap-4 text-[10px] opacity-80">
+            <span>X: <span id="pos-x">0</span></span>
+            <span>Y: <span id="pos-y">0</span></span>
+        </div>
     </div>
 
     <div id="video-preview-container">
@@ -246,37 +243,40 @@
 
     <canvas id="game-canvas"></canvas>
 
-    <footer id="game-footer">
+    <footer>
         版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
     </footer>
 
     <script>
         const { Engine, Render, Runner, World, Bodies, Composite, Constraint, Events, Vector, Body } = Matter;
 
-        // 背景圖片路徑
         const bgImages = { pool: '1.jpg', onsen: '2.jpg', land: '3.jpg' };
-
         const bgLayer = document.getElementById('background-layer');
         const arVideo = document.getElementById('ar-video');
         const steamOverlay = document.getElementById('steam-overlay');
         const bgSelect = document.getElementById('bg-select');
-        const camToggle = document.getElementById('cam-toggle');
-        const camPreview = document.getElementById('video-preview-container');
-        const areaVal = document.getElementById('area-val');
+        const areaValLabel = document.getElementById('area-val');
+        const hungerValLabel = document.getElementById('hunger-val');
         const posXVal = document.getElementById('pos-x');
         const posYVal = document.getElementById('pos-y');
         const startBtn = document.getElementById('start-camera-btn');
         const cameraSelect = document.getElementById('camera-select');
         const hideUiBtn = document.getElementById('hide-ui-btn');
         const showUiBtn = document.getElementById('show-ui-btn');
+        const bandaidBtn = document.getElementById('bandaid-btn');
+        const addCapybaraBtn = document.getElementById('add-capybara-btn');
+        const eatBtn = document.getElementById('eat-btn');
         const controlCard = document.getElementById('control-card');
-        const areaTag = document.getElementById('area-tag');
-        const footer = document.getElementById('game-footer');
+        const infoTag = document.getElementById('info-tag');
 
         const canvas = document.getElementById('game-canvas');
         const engine = Engine.create();
         const world = engine.world;
-        engine.gravity.y = 1.0;
+        
+        // 提高物理引擎的迭代次數以保證軟體穩定性
+        engine.gravity.y = 1.6;
+        engine.positionIterations = 15;
+        engine.velocityIterations = 15;
 
         const render = Render.create({
             canvas: canvas, engine: engine,
@@ -287,17 +287,93 @@
         const runner = Runner.create();
         Runner.run(runner, engine);
 
+        let capybaras = [];
+        let hungerValue = 0;
+
+        function createCapybara(xx, yy) {
+            const radius = 90;
+            const segments = 32;
+            const particles = [];
+            
+            // 每一隻水豚擁有獨特的碰撞組，避免內部零件互撞，但會跟其他隻碰撞
+            const group = Body.nextGroup(true);
+
+            // 1. 支撐內核 (Core) - 這是剛體堆疊的關鍵
+            const core = Bodies.circle(xx, yy, 45, {
+                friction: 1.0,
+                frictionStatic: 2.0,
+                restitution: 0,
+                collisionFilter: { group: group },
+                render: { visible: false }
+            });
+
+            // 2. 軟質外殼粒子 (Shell Particles)
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 10, {
+                    friction: 1.0, 
+                    frictionStatic: 2.0,
+                    restitution: 0, 
+                    density: 0.005,
+                    collisionFilter: { group: group },
+                    render: { visible: false }
+                }));
+            }
+
+            const constraints = [];
+            // 3. 連接粒子形成環狀蒙皮
+            for (let i = 0; i < segments; i++) {
+                constraints.push(Constraint.create({
+                    bodyA: particles[i], bodyB: particles[(i + 1) % segments],
+                    stiffness: 0.8, damping: 0.1, render: { visible: false }
+                }));
+            }
+
+            // 4. 骨架約束：連接粒子與核心
+            particles.forEach(p => {
+                constraints.push(Constraint.create({
+                    bodyA: core, bodyB: p, 
+                    stiffness: 0.25, // 控制「軟硬度」
+                    damping: 0.2, 
+                    render: { visible: false }
+                }));
+            });
+
+            // 5. 強化交叉支撐：防止過度拉長或扭曲
+            for (let i = 0; i < segments; i += 4) {
+                const targetIdx = (i + Math.floor(segments / 2)) % segments;
+                constraints.push(Constraint.create({
+                    bodyA: particles[i], bodyB: particles[targetIdx],
+                    stiffness: 0.1, render: { visible: false }
+                }));
+            }
+
+            const composite = Composite.create({ bodies: [...particles, core], constraints });
+            World.add(world, composite);
+            
+            const capy = {
+                composite,
+                particles,
+                core,
+                radius,
+                roastedLevel: 0,
+                bruises: []
+            };
+            capybaras.push(capy);
+            return capy;
+        }
+
+        createCapybara(window.innerWidth / 2, window.innerHeight / 2);
+
         function setUiVisibility(visible) {
             if (visible) {
                 controlCard.classList.remove('ui-hidden');
-                areaTag.classList.remove('ui-hidden');
-                footer.classList.remove('ui-hidden');
+                infoTag.classList.remove('ui-hidden');
                 showUiBtn.style.display = 'none';
                 if (document.fullscreenElement) document.exitFullscreen().catch(e => {});
             } else {
                 controlCard.classList.add('ui-hidden');
-                areaTag.classList.add('ui-hidden');
-                footer.classList.add('ui-hidden');
+                infoTag.classList.add('ui-hidden');
                 showUiBtn.style.display = 'block';
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => {});
             }
@@ -318,154 +394,123 @@
                     option.text = device.label || `攝影機 ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-            } catch (err) {
-                cameraSelect.innerHTML = '<option value="">無法偵測攝影機</option>';
-            }
+            } catch (err) { console.error(err); }
         }
         getCameras();
 
-        // 監聽攝影機切換：停止目前鏡頭並重置按鈕
         cameraSelect.onchange = async () => {
-            if (cameraInstance) {
-                await cameraInstance.stop();
-                cameraInstance = null;
-            }
+            if (cameraInstance) { await cameraInstance.stop(); cameraInstance = null; }
             startBtn.innerText = "啟動攝影機";
             startBtn.disabled = false;
-            startBtn.style.animation = 'pulse 2s infinite';
-            startBtn.style.background = '#fbbf24';
         };
 
         function updateBackground() {
             const mode = bgSelect.value;
-            arVideo.style.display = 'none';
-            steamOverlay.style.display = 'none';
-            bgLayer.style.backgroundImage = 'none';
-            if (mode === 'ar') {
+            arVideo.style.display = 'none'; steamOverlay.style.display = 'none'; bgLayer.style.backgroundImage = 'none';
+            if (mode === 'ar') { 
                 arVideo.style.display = 'block';
-            } else {
-                bgLayer.style.backgroundImage = `url('${bgImages[mode]}')`;
-                if (mode === 'onsen') steamOverlay.style.display = 'block';
+                if (cameraInstance) arVideo.srcObject = videoElement.srcObject;
+            } else { 
+                bgLayer.style.backgroundImage = `url('${bgImages[mode]}')`; 
+                if (mode === 'onsen') steamOverlay.style.display = 'block'; 
             }
         }
         bgSelect.addEventListener('change', updateBackground);
-        bgSelect.value = 'onsen';
-        updateBackground();
-
-        camToggle.addEventListener('change', () => {
-            camPreview.style.display = camToggle.checked ? 'block' : 'none';
-        });
 
         let currentWalls = [];
-        const wallThickness = 600;
         function createWalls() {
             if (currentWalls.length > 0) World.remove(world, currentWalls);
-            const opt = { isStatic: true, friction: 0.5, restitution: 0.7, render: { visible: false } };
+            const opt = { isStatic: true, friction: 1.0, frictionStatic: 5, restitution: 0, render: { visible: false } };
             const W = window.innerWidth, H = window.innerHeight;
+            const groundY = H * 0.9;
+
             currentWalls = [
-                Bodies.rectangle(W / 2, H + wallThickness / 2, W + 2000, wallThickness, opt),
-                Bodies.rectangle(W / 2, -wallThickness / 2, W + 2000, wallThickness, opt),
-                Bodies.rectangle(-wallThickness / 2, H / 2, wallThickness, H + 2000, opt),
-                Bodies.rectangle(W + wallThickness / 2, H / 2, wallThickness, H + 2000, opt)
+                Bodies.rectangle(W / 2, groundY + 300, W + 2000, 600, opt),
+                Bodies.rectangle(W / 2, -300, W + 2000, 600, opt),
+                Bodies.rectangle(-300, H / 2, 600, H + 2000, opt),
+                Bodies.rectangle(W + 300, H / 2, 600, H + 2000, opt)
             ];
             World.add(world, currentWalls);
         }
         createWalls();
 
-        function createCapybaraBall(xx, yy, radius, segments) {
-            const particles = [];
-            for (let i = 0; i < segments; i++) {
-                const angle = (i / segments) * Math.PI * 2;
-                particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 7, {
-                    friction: 0.5, restitution: 0.8, render: { visible: false }
-                }));
-            }
-            const constraints = [];
-            for (let i = 0; i < segments; i++) {
-                constraints.push(Constraint.create({
-                    bodyA: particles[i], bodyB: particles[(i + 1) % segments],
-                    stiffness: 0.9, damping: 0.05, render: { visible: false }
-                }));
-            }
-            const center = Bodies.circle(xx, yy, 25, { isSensor: true, render: { visible: false } });
-            particles.forEach(p => {
-                constraints.push(Constraint.create({
-                    bodyA: center, bodyB: p, stiffness: 0.22, damping: 0.1, render: { visible: false }
-                }));
+        addCapybaraBtn.onclick = () => {
+            createCapybara(window.innerWidth / 2 + (Math.random()-0.5)*20, 100);
+        };
+
+        bandaidBtn.onclick = () => {
+            capybaras.forEach(c => {
+                const target = c.bruises.find(b => !b.hasBandaid);
+                if (target) target.hasBandaid = true;
             });
-            const composite = Composite.create({ bodies: [...particles, center], constraints });
-            World.add(world, composite);
-            return { particles, center, radius, composite };
-        }
+        };
 
-        let ball = createCapybaraBall(window.innerWidth / 2, window.innerHeight / 2, 140, 40);
+        eatBtn.onclick = () => {
+            const sorted = [...capybaras].sort((a, b) => b.roastedLevel - a.roastedLevel);
+            if (sorted.length > 0 && sorted[0].roastedLevel > 80) {
+                const target = sorted[0];
+                World.remove(world, target.composite);
+                capybaras = capybaras.filter(c => c !== target);
+                hungerValue += 20; 
+                hungerValLabel.innerText = hungerValue;
+            }
+        };
 
-        function resetPosition() {
-            const xx = window.innerWidth / 2, yy = window.innerHeight / 2;
-            const dx = xx - ball.center.position.x, dy = yy - ball.center.position.y;
-            Body.setPosition(ball.center, { x: xx, y: yy });
-            ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x + dx, y: p.position.y + dy }));
-        }
-
-        function resetSize() {
-            const cx = ball.center.position.x, cy = ball.center.position.y;
-            const a0 = Math.atan2(ball.particles[0].position.y - cy, ball.particles[0].position.x - cx);
-            ball.particles.forEach((p, i) => {
-                const a = a0 + (i / ball.particles.length) * Math.PI * 2;
-                Body.setPosition(p, { x: cx + Math.cos(a) * ball.radius, y: cy + Math.sin(a) * ball.radius });
-                Body.setVelocity(p, { x: 0, y: 0 });
+        document.getElementById('reset-pos').onclick = () => {
+            capybaras.forEach((c, idx) => {
+                const targetY = window.innerHeight / 2 - (idx * 160);
+                Body.setPosition(c.core, { x: window.innerWidth / 2, y: targetY });
+                c.particles.forEach(p => Body.setPosition(p, { x: window.innerWidth / 2, y: targetY }));
+                Body.setVelocity(c.core, { x: 0, y: 0 });
             });
-            Body.setVelocity(ball.center, { x: 0, y: 0 });
-        }
+        };
 
-        document.getElementById('reset-pos').onclick = resetPosition;
-        document.getElementById('reset-size').onclick = resetSize;
+        document.getElementById('reset-size').onclick = () => {
+            capybaras.forEach(c => {
+                const cx = c.core.position.x, cy = c.core.position.y;
+                c.particles.forEach((p, i) => {
+                    const a = (i / c.particles.length) * Math.PI * 2;
+                    Body.setPosition(p, { x: cx + Math.cos(a) * c.radius, y: cy + Math.sin(a) * c.radius });
+                });
+            });
+        };
 
         Events.on(engine, 'afterUpdate', () => {
             const W = window.innerWidth, H = window.innerHeight;
-            const pad = 20, minR = 25; 
-            const maxYLimit = H * 0.875;
-            const resetYTarget = H * 0.8125;
+            const roastX = W - 150, roastY = H - 120;
 
-            if (ball.center.position.y > maxYLimit) {
-                const dy = resetYTarget - ball.center.position.y;
-                Body.setPosition(ball.center, { x: ball.center.position.x, y: resetYTarget });
-                ball.particles.forEach(p => Body.setPosition(p, { x: p.position.x, y: p.position.y + dy }));
-            }
+            capybaras.forEach(c => {
+                if (c.core.position.y > H + 500) Body.setPosition(c.core, { x: W/2, y: 100 });
 
-            ball.particles.forEach(p => {
-                const dx = p.position.x - ball.center.position.x, dy = p.position.y - ball.center.position.y;
-                const d = Math.hypot(dx, dy);
-                if (d < minR) {
-                    const a = Math.atan2(dy, dx);
-                    Body.setPosition(p, { x: ball.center.position.x + Math.cos(a) * minR, y: ball.center.position.y + Math.sin(a) * minR });
+                const distToFire = Math.hypot(c.core.position.x - roastX, c.core.position.y - roastY);
+                if (distToFire < 130) c.roastedLevel = Math.min(100, c.roastedLevel + 0.3);
+                
+                // 自動修正倒立的情形，保持站姿利於堆疊
+                if (Math.abs(c.core.angle) > 0.8) {
+                    Body.setAngularVelocity(c.core, -c.core.angle * 0.05);
                 }
-                let x = p.position.x, y = p.position.y;
-                if (x < pad) x = pad; if (x > W - pad) x = W - pad;
-                if (y < pad) y = pad; if (y > H - pad) y = H - pad;
-                if (x !== p.position.x || y !== p.position.y) Body.setPosition(p, { x, y });
+
+                // 計算面積顯示
+                if (c === capybaras[0]) {
+                    let a = 0;
+                    for (let i = 0; i < c.particles.length; i++) {
+                        const p1 = c.particles[i].position, p2 = c.particles[(i+1)%c.particles.length].position;
+                        a += (p1.x * p2.y) - (p2.x * p1.y);
+                    }
+                    areaValLabel.innerText = Math.round(Math.abs(a) * 0.5);
+                    posXVal.innerText = Math.round(c.core.position.x);
+                    posYVal.innerText = Math.round(c.core.position.y);
+                }
             });
-            let area = 0;
-            const pts = ball.particles;
-            for (let i = 0; i < pts.length; i++) {
-                area += (pts[i].position.x * pts[(i + 1) % pts.length].position.y) - (pts[(i + 1) % pts.length].position.x * pts[i].position.y);
-            }
-            area = Math.abs(area) * 0.5;
-            areaVal.innerText = Math.round(area);
-            posXVal.innerText = Math.round(ball.center.position.x);
-            posYVal.innerText = Math.round(ball.center.position.y);
-            if (area < 10000) resetSize();
         });
 
         const videoElement = document.getElementById('input-video');
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
         let lastResults = null, cameraInstance = null;
-        
-        // 追蹤多指捏合狀態
         const activePinches = new Map();
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.75 });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
         
         hands.onResults((results) => {
             lastResults = results;
@@ -473,146 +518,141 @@
             videoPreviewCtx.clearRect(0, 0, 200, 150);
             videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
             videoPreviewCtx.restore();
-            
-            if (bgSelect.value === 'ar' && arVideo.srcObject !== videoElement.srcObject) arVideo.srcObject = videoElement.srcObject;
 
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            if (results.multiHandLandmarks) {
                 const W = window.innerWidth, H = window.innerHeight;
-                const currentHandsIndices = new Set();
+                const activeIndices = new Set();
 
                 results.multiHandLandmarks.forEach((lms, handIdx) => {
-                    currentHandsIndices.add(handIdx);
-                    const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
-                    
-                    // 優化靈敏度：專注偵測拇指 (4) 與 食指 (8)
-                    const thumb = getPx(4);
-                    const indexFinger = getPx(8);
-                    const dist = Math.hypot(thumb.x - indexFinger.x, thumb.y - indexFinger.y);
-                    
-                    // 捏合閾值設為 55 像素，提高靈敏度
-                    let pinchPos = (dist < 55) ? { x: (thumb.x + indexFinger.x) / 2, y: (thumb.y + indexFinger.y) / 2 } : null;
+                    activeIndices.add(handIdx);
+                    const thumb = { x: (1 - lms[4].x) * W, y: lms[4].y * H };
+                    const indexF = { x: (1 - lms[8].x) * W, y: lms[8].y * H };
+                    const pinchPos = (Math.hypot(thumb.x - indexF.x, thumb.y - indexF.y) < 55) ? { x: (thumb.x + indexF.x)/2, y: (thumb.y + indexF.y)/2 } : null;
 
                     if (pinchPos) {
                         if (!activePinches.has(handIdx)) {
-                            let closest = null, minDist = 180;
-                            ball.particles.forEach(p => {
-                                const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
-                                if (d < minDist) { minDist = d, closest = p; }
+                            let closestParticle = null, minDist = 120;
+                            capybaras.forEach(c => {
+                                c.particles.forEach(p => {
+                                    const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
+                                    if (d < minDist) { minDist = d; closestParticle = p; }
+                                });
                             });
-                            if (closest) {
-                                // 提高抓取強度 stiffness 使其更穩定
-                                const constraint = Constraint.create({ pointA: pinchPos, bodyB: closest, stiffness: 0.5, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
-                                World.add(world, constraint);
-                                activePinches.set(handIdx, constraint);
+                            if (closestParticle) {
+                                // 捏住外殼粒子而非核心，這樣才能產生局部拉扯形變
+                                const cns = Constraint.create({ 
+                                    pointA: pinchPos, 
+                                    bodyB: closestParticle, 
+                                    stiffness: 0.5, 
+                                    damping: 0.5,
+                                    render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } 
+                                });
+                                World.add(world, cns);
+                                activePinches.set(handIdx, { constraint: cns });
                             }
-                        } else {
-                            activePinches.get(handIdx).pointA = pinchPos;
+                        } else { 
+                            activePinches.get(handIdx).constraint.pointA = pinchPos; 
                         }
-                    } else {
-                        if (activePinches.has(handIdx)) {
-                            World.remove(world, activePinches.get(handIdx));
-                            activePinches.delete(handIdx);
-                        }
-                    }
-
-                    // 實體揉搓推力
-                    [4, 8, 12, 16, 20].map(getPx).forEach(tip => {
-                        ball.particles.forEach(p => {
-                            const d = Math.hypot(p.position.x - tip.x, p.position.y - tip.y);
-                            if (d < 110) {
-                                const a = Math.atan2(p.position.y - tip.y, p.position.x - tip.x);
-                                Body.applyForce(p, p.position, { x: Math.cos(a) * 0.025 * (1 - d/110), y: Math.sin(a) * 0.025 * (1 - d/110) });
-                            }
-                        });
-                    });
-                });
-
-                // 清理消失的手
-                for (let handIdx of activePinches.keys()) {
-                    if (!currentHandsIndices.has(handIdx)) {
-                        World.remove(world, activePinches.get(handIdx));
+                    } else if (activePinches.has(handIdx)) {
+                        World.remove(world, activePinches.get(handIdx).constraint);
                         activePinches.delete(handIdx);
                     }
-                }
+                });
+                for (let k of activePinches.keys()) if (!activeIndices.has(k)) { World.remove(world, activePinches.get(k).constraint); activePinches.delete(k); }
             } else {
-                activePinches.forEach(c => World.remove(world, c));
-                activePinches.clear();
+                activePinches.forEach(v => World.remove(world, v.constraint)); activePinches.clear();
             }
         });
 
-        async function runCamera() {
-            const deviceId = cameraSelect.value;
-            if (!deviceId) return;
-            startBtn.innerText = "正在啟動...";
-            startBtn.disabled = true;
+        startBtn.onclick = async () => {
+            const deviceId = cameraSelect.value; if (!deviceId) return;
+            startBtn.innerText = "正在啟動..."; startBtn.disabled = true;
             if (cameraInstance) await cameraInstance.stop();
-            try {
-                cameraInstance = new Camera(videoElement, {
-                    onFrame: async () => { await hands.send({image: videoElement}); },
-                    width: 640, height: 480, deviceId: deviceId
-                });
-                await cameraInstance.start();
-                startBtn.innerText = "攝影機已連線";
-                startBtn.style.animation = 'none';
-                startBtn.style.background = '#4ade80';
-            } catch (err) {
-                startBtn.innerText = "連線失敗";
-                startBtn.disabled = false;
-            }
-        }
-        startBtn.onclick = runCamera;
+            cameraInstance = new Camera(videoElement, {
+                onFrame: async () => { await hands.send({image: videoElement}); },
+                width: 640, height: 480, deviceId
+            });
+            await cameraInstance.start();
+            if (bgSelect.value === 'ar') arVideo.srcObject = videoElement.srcObject;
+            startBtn.innerText = "攝影機已連線"; startBtn.style.animation = 'none'; startBtn.style.background = '#4ade80';
+        };
 
         Events.on(render, 'afterRender', () => {
-            const ctx = render.context, pts = ball.particles, center = ball.center.position;
-            const W = window.innerWidth, H = window.innerHeight;
+            const ctx = render.context, W = window.innerWidth, H = window.innerHeight;
 
-            ctx.beginPath();
-            ctx.moveTo(pts[0].position.x, pts[0].position.y);
-            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
-            ctx.closePath();
-            const grad = ctx.createRadialGradient(center.x, center.y - 30, 20, center.x, center.y, ball.radius * 1.3);
-            grad.addColorStop(0, '#a16207'); grad.addColorStop(1, '#713f12');
-            ctx.fillStyle = grad; ctx.fill();
-            ctx.strokeStyle = '#452205'; ctx.lineWidth = 5; ctx.stroke();
-
-            const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
-
+            // 繪製火堆
+            const rx = W - 150, ry = H - 120;
             ctx.save();
-            ctx.translate(center.x, center.y);
-            ctx.rotate(bAngle);
-
-            const drawEar = (side) => {
-                ctx.fillStyle = '#713f12'; ctx.beginPath();
-                ctx.arc(side * 55, -135, 18, 0, Math.PI * 2);
-                ctx.fill(); ctx.strokeStyle = '#452205'; ctx.lineWidth = 3; ctx.stroke();
-            };
-            drawEar(-1); drawEar(1);
-
-            ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-45, 5, 90, 35, 15); ctx.fill();
-            ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-10, 25, 4, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(10, 25, 4, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-            ctx.beginPath(); ctx.moveTo(-35, -15); ctx.lineTo(-20, -12); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(35, -15); ctx.lineTo(20, -12); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 69, 0, 0.15)';
+            ctx.beginPath(); ctx.arc(rx, ry, 100, 0, Math.PI*2); ctx.fill();
+            const time = Date.now() * 0.01;
+            for(let i=0; i<3; i++) {
+                ctx.font = `${40 + Math.sin(time + i)*10}px serif`;
+                ctx.fillText('🔥', rx - 35 + i*25, ry + 15 + Math.cos(time + i)*10);
+            }
             ctx.restore();
 
-            let topP = pts[0]; pts.forEach(p => { if (p.position.y < topP.position.y) topP = p; });
-            const ox = topP.position.x, oy = topP.position.y - 12;
-            ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(ox, oy, 18, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#c2410c'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(ox, oy - 18, 10, 5, Math.PI/4, 0, Math.PI * 2); ctx.fill();
+            // 繪製水豚蒙皮
+            capybaras.forEach(c => {
+                const pts = c.particles, center = c.core.position;
+                
+                ctx.beginPath();
+                ctx.moveTo(pts[0].position.x, pts[0].position.y);
+                for(let i=1; i<pts.length; i++) {
+                    ctx.lineTo(pts[i].position.x, pts[i].position.y);
+                }
+                ctx.closePath();
 
+                const level = c.roastedLevel;
+                const r = Math.floor(161 - level * 1.3), g = Math.floor(98 - level * 0.9), b = Math.floor(7 - level * 0.05);
+                const grad = ctx.createRadialGradient(center.x, center.y - 15, 10, center.x, center.y, c.radius * 1.2);
+                grad.addColorStop(0, `rgb(${r+30}, ${g+30}, ${b})`);
+                grad.addColorStop(1, `rgb(${r}, ${g}, ${b})`);
+                
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = '#452205';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // 臉部細節 (基於核心座標與第一個粒子的方向繪製)
+                const angle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
+                ctx.save();
+                ctx.translate(center.x, center.y);
+                ctx.rotate(angle);
+                
+                // 耳朵
+                const drawEar = (s) => {
+                    ctx.fillStyle = '#713f12'; ctx.beginPath();
+                    ctx.arc(s * 40, -c.radius + 15, 16, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+                };
+                drawEar(-1); drawEar(1);
+
+                // 臉部
+                ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-30, 0, 60, 25, 10); ctx.fill();
+                ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-7, 15, 3, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(7, 15, 3, 0, Math.PI*2); ctx.fill();
+                
+                // 眉毛
+                ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(-25, -10); ctx.lineTo(-15, -8); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(25, -10); ctx.lineTo(15, -8); ctx.stroke();
+                
+                ctx.restore();
+
+                // 橘子（跟隨最頂端的粒子）
+                let topP = pts[0]; pts.forEach(p => { if(p.position.y < topP.position.y) topP = p; });
+                ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(topP.position.x, topP.position.y - 15, 16, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(topP.position.x, topP.position.y - 30, 8, 4, Math.PI/4, 0, Math.PI*2); ctx.fill();
+            });
+
+            // 手部骨架
             if (lastResults && lastResults.multiHandLandmarks) {
                 lastResults.multiHandLandmarks.forEach(lms => {
-                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 3;
                     HAND_CONNECTIONS.forEach(([s, e]) => {
-                        ctx.beginPath();
-                        ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H);
-                        ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H);
-                        ctx.stroke();
-                    });
-                    lms.forEach(lm => {
-                        ctx.beginPath(); ctx.arc((1 - lm.x) * W, lm.y * H, 5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+                        ctx.beginPath(); ctx.moveTo((1 - lms[s].x) * W, lms[s].y * H); ctx.lineTo((1 - lms[e].x) * W, lms[e].y * H); ctx.stroke();
                     });
                 });
             }
@@ -621,12 +661,9 @@
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             render.options.width = window.innerWidth; render.options.height = window.innerHeight;
-            createWalls(); resetPosition();
+            createWalls();
         });
-
-        setTimeout(resetPosition, 100);
-        setTimeout(resetPosition, 500);
-        setTimeout(resetSize, 500);
+        setTimeout(() => { document.getElementById('reset-pos').onclick(); }, 1000);
     </script>
 </body>
 </html>
