@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>捏卡皮巴拉 - 軟Ｑ實體版</title>
+    <title>捏卡皮巴拉</title>
     <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -195,10 +195,10 @@
             </div>
 
             <div class="instruction-box bg-orange-900/20 p-2 rounded-lg border border-orange-500/30 mb-2">
-                <p class="text-xs font-bold text-orange-200 mb-1">物理筆記：</p>
-                <div class="text-[11px] text-orange-100">● 軟Ｑ實體：現在可以壓扁拉長，且能穩定堆疊</div>
-                <div class="text-[11px] text-orange-100">● 捏臉：用手捏住邊緣粒子即可拉扯形變</div>
-                <div class="text-[11px] text-orange-100">● 支撐：內部有硬核支撐，疊高高不再重疊</div>
+                <p class="text-xs font-bold text-orange-200 mb-1">生存筆記：</p>
+                <div class="text-[11px] text-orange-100">● 疊高高：牠們可以穩穩地疊在同伴身上</div>
+                <div class="text-[11px] text-orange-100">● 碰撞：具有真實實體碰撞，不穿透</div>
+                <div class="text-[11px] text-orange-100">● 餵食：烤至黑色後點擊「吃掉」增加積分</div>
             </div>
             
             <div class="control-group">
@@ -227,7 +227,7 @@
 
     <div id="info-tag">
         <div class="flex gap-4">
-            <span>外殼面積: <span id="area-val">0</span> px</span>
+            <span>面積: <span id="area-val">0</span> px</span>
             <span style="color: #f87171;">飢餓值: <span id="hunger-val">0</span></span>
         </div>
         <div class="flex gap-4 text-[10px] opacity-80">
@@ -273,8 +273,8 @@
         const engine = Engine.create();
         const world = engine.world;
         
-        // 提高物理引擎的迭代次數以保證軟體穩定性
-        engine.gravity.y = 1.6;
+        // 優化物理堆疊參數：提高計算頻率與位置精度
+        engine.gravity.y = 1.2;
         engine.positionIterations = 15;
         engine.velocityIterations = 15;
 
@@ -292,69 +292,39 @@
 
         function createCapybara(xx, yy) {
             const radius = 90;
-            const segments = 32;
+            const segments = 45; // 增加細分度讓碰撞邊緣更圓滑穩定
             const particles = [];
-            
-            // 每一隻水豚擁有獨特的碰撞組，避免內部零件互撞，但會跟其他隻碰撞
-            const group = Body.nextGroup(true);
-
-            // 1. 支撐內核 (Core) - 這是剛體堆疊的關鍵
-            const core = Bodies.circle(xx, yy, 45, {
-                friction: 1.0,
-                frictionStatic: 2.0,
-                restitution: 0,
-                collisionFilter: { group: group },
-                render: { visible: false }
-            });
-
-            // 2. 軟質外殼粒子 (Shell Particles)
             for (let i = 0; i < segments; i++) {
                 const angle = (i / segments) * Math.PI * 2;
-                particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 10, {
+                // 設定高靜摩擦力 (2.0) 與 0 彈性，讓堆疊效果如同實體
+                particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 8, {
                     friction: 1.0, 
-                    frictionStatic: 2.0,
+                    frictionStatic: 2.5,
                     restitution: 0, 
-                    density: 0.005,
-                    collisionFilter: { group: group },
+                    frictionAir: 0.05, 
                     render: { visible: false }
                 }));
             }
-
             const constraints = [];
-            // 3. 連接粒子形成環狀蒙皮
             for (let i = 0; i < segments; i++) {
                 constraints.push(Constraint.create({
                     bodyA: particles[i], bodyB: particles[(i + 1) % segments],
                     stiffness: 0.8, damping: 0.1, render: { visible: false }
                 }));
             }
-
-            // 4. 骨架約束：連接粒子與核心
+            const center = Bodies.circle(xx, yy, 25, { isSensor: true, render: { visible: false } });
             particles.forEach(p => {
                 constraints.push(Constraint.create({
-                    bodyA: core, bodyB: p, 
-                    stiffness: 0.25, // 控制「軟硬度」
-                    damping: 0.2, 
-                    render: { visible: false }
+                    bodyA: center, bodyB: p, stiffness: 0.22, damping: 0.1, render: { visible: false }
                 }));
             });
-
-            // 5. 強化交叉支撐：防止過度拉長或扭曲
-            for (let i = 0; i < segments; i += 4) {
-                const targetIdx = (i + Math.floor(segments / 2)) % segments;
-                constraints.push(Constraint.create({
-                    bodyA: particles[i], bodyB: particles[targetIdx],
-                    stiffness: 0.1, render: { visible: false }
-                }));
-            }
-
-            const composite = Composite.create({ bodies: [...particles, core], constraints });
+            const composite = Composite.create({ bodies: [...particles, center], constraints });
             World.add(world, composite);
             
             const capy = {
                 composite,
                 particles,
-                core,
+                center,
                 radius,
                 roastedLevel: 0,
                 bruises: []
@@ -402,6 +372,7 @@
             if (cameraInstance) { await cameraInstance.stop(); cameraInstance = null; }
             startBtn.innerText = "啟動攝影機";
             startBtn.disabled = false;
+            startBtn.style.animation = 'pulse 2s infinite';
         };
 
         function updateBackground() {
@@ -420,22 +391,22 @@
         let currentWalls = [];
         function createWalls() {
             if (currentWalls.length > 0) World.remove(world, currentWalls);
-            const opt = { isStatic: true, friction: 1.0, frictionStatic: 5, restitution: 0, render: { visible: false } };
+            const opt = { isStatic: true, friction: 1.0, restitution: 0, render: { visible: false } };
             const W = window.innerWidth, H = window.innerHeight;
-            const groundY = H * 0.9;
+            const groundY = H * 0.875;
 
             currentWalls = [
-                Bodies.rectangle(W / 2, groundY + 300, W + 2000, 600, opt),
-                Bodies.rectangle(W / 2, -300, W + 2000, 600, opt),
-                Bodies.rectangle(-300, H / 2, 600, H + 2000, opt),
-                Bodies.rectangle(W + 300, H / 2, 600, H + 2000, opt)
+                Bodies.rectangle(W / 2, groundY + 300, W + 2000, 600, opt), // 物理地面
+                Bodies.rectangle(W / 2, -300, W + 2000, 600, opt),         // 天花板
+                Bodies.rectangle(-300, H / 2, 600, H + 2000, opt),        // 左牆
+                Bodies.rectangle(W + 300, H / 2, 600, H + 2000, opt)      // 右牆
             ];
             World.add(world, currentWalls);
         }
         createWalls();
 
         addCapybaraBtn.onclick = () => {
-            createCapybara(window.innerWidth / 2 + (Math.random()-0.5)*20, 100);
+            createCapybara(window.innerWidth / 2 + (Math.random()-0.5)*80, 100);
         };
 
         bandaidBtn.onclick = () => {
@@ -458,19 +429,21 @@
 
         document.getElementById('reset-pos').onclick = () => {
             capybaras.forEach((c, idx) => {
-                const targetY = window.innerHeight / 2 - (idx * 160);
-                Body.setPosition(c.core, { x: window.innerWidth / 2, y: targetY });
-                c.particles.forEach(p => Body.setPosition(p, { x: window.innerWidth / 2, y: targetY }));
-                Body.setVelocity(c.core, { x: 0, y: 0 });
+                const xx = window.innerWidth / 2;
+                const yy = window.innerHeight / 2;
+                Body.setPosition(c.center, { x: xx, y: yy });
+                c.particles.forEach(p => Body.setPosition(p, { x: xx, y: yy }));
+                Body.setVelocity(c.center, { x: 0, y: 0 });
             });
         };
 
         document.getElementById('reset-size').onclick = () => {
             capybaras.forEach(c => {
-                const cx = c.core.position.x, cy = c.core.position.y;
+                const cx = c.center.position.x, cy = c.center.position.y;
                 c.particles.forEach((p, i) => {
                     const a = (i / c.particles.length) * Math.PI * 2;
                     Body.setPosition(p, { x: cx + Math.cos(a) * c.radius, y: cy + Math.sin(a) * c.radius });
+                    Body.setVelocity(p, { x: 0, y: 0 });
                 });
             });
         };
@@ -480,34 +453,63 @@
             const roastX = W - 150, roastY = H - 120;
 
             capybaras.forEach(c => {
-                if (c.core.position.y > H + 500) Body.setPosition(c.core, { x: W/2, y: 100 });
-
-                const distToFire = Math.hypot(c.core.position.x - roastX, c.core.position.y - roastY);
-                if (distToFire < 130) c.roastedLevel = Math.min(100, c.roastedLevel + 0.3);
-                
-                // 自動修正倒立的情形，保持站姿利於堆疊
-                if (Math.abs(c.core.angle) > 0.8) {
-                    Body.setAngularVelocity(c.core, -c.core.angle * 0.05);
+                // 安全檢查：掉出畫面太遠才傳送
+                if (c.center.position.y > H + 200) {
+                    Body.setPosition(c.center, { x: W/2, y: H/2 });
                 }
 
-                // 計算面積顯示
-                if (c === capybaras[0]) {
-                    let a = 0;
-                    for (let i = 0; i < c.particles.length; i++) {
-                        const p1 = c.particles[i].position, p2 = c.particles[(i+1)%c.particles.length].position;
-                        a += (p1.x * p2.y) - (p2.x * p1.y);
+                // 烤火邏輯
+                const distToFire = Math.hypot(c.center.position.x - roastX, c.center.position.y - roastY);
+                if (distToFire < 130) {
+                    c.roastedLevel = Math.min(100, c.roastedLevel + 0.3);
+                }
+
+                // 內縮力與邊界限制
+                c.particles.forEach(p => {
+                    const dx = p.position.x - c.center.position.x, dy = p.position.y - c.center.position.y;
+                    const d = Math.hypot(dx, dy);
+                    if (d < 30) {
+                        const a = Math.atan2(dy, dx);
+                        Body.setPosition(p, { x: c.center.position.x + Math.cos(a) * 30, y: c.center.position.y + Math.sin(a) * 30 });
                     }
-                    areaValLabel.innerText = Math.round(Math.abs(a) * 0.5);
-                    posXVal.innerText = Math.round(c.core.position.x);
-                    posYVal.innerText = Math.round(c.core.position.y);
+                    if (p.position.x < 15) Body.setPosition(p, { x: 15, y: p.position.y });
+                    if (p.position.x > W - 15) Body.setPosition(p, { x: W - 15, y: p.position.y });
+                });
+
+                // 自動重置過度變形
+                let area = 0;
+                for (let i = 0; i < c.particles.length; i++) {
+                    const p1 = c.particles[i].position, p2 = c.particles[(i+1)%c.particles.length].position;
+                    area += (p1.x * p2.y) - (p2.x * p1.y);
+                }
+                area = Math.abs(area) * 0.5;
+                if (area < 10000) {
+                    const cx = c.center.position.x, cy = c.center.position.y;
+                    c.particles.forEach((p, i) => {
+                        const a = (i / c.particles.length) * Math.PI * 2;
+                        Body.setPosition(p, { x: cx + Math.cos(a) * c.radius, y: cy + Math.sin(a) * c.radius });
+                    });
                 }
             });
+
+            if (capybaras.length > 0) {
+                const first = capybaras[0];
+                posXVal.innerText = Math.round(first.center.position.x);
+                posYVal.innerText = Math.round(first.center.position.y);
+                let a = 0;
+                for (let i = 0; i < first.particles.length; i++) {
+                    const p1 = first.particles[i].position, p2 = first.particles[(i+1)%first.particles.length].position;
+                    a += (p1.x * p2.y) - (p2.x * p1.y);
+                }
+                areaValLabel.innerText = Math.round(Math.abs(a) * 0.5);
+            }
         });
 
         const videoElement = document.getElementById('input-video');
         const videoPreviewCtx = document.getElementById('output-video-canvas').getContext('2d');
         let lastResults = null, cameraInstance = null;
         const activePinches = new Map();
+        const prevHandPos = new Map();
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
@@ -525,34 +527,46 @@
 
                 results.multiHandLandmarks.forEach((lms, handIdx) => {
                     activeIndices.add(handIdx);
-                    const thumb = { x: (1 - lms[4].x) * W, y: lms[4].y * H };
-                    const indexF = { x: (1 - lms[8].x) * W, y: lms[8].y * H };
+                    const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
+                    const thumb = getPx(4), indexF = getPx(8), palm = getPx(0);
                     const pinchPos = (Math.hypot(thumb.x - indexF.x, thumb.y - indexF.y) < 55) ? { x: (thumb.x + indexF.x)/2, y: (thumb.y + indexF.y)/2 } : null;
+
+                    if (prevHandPos.has(handIdx)) {
+                        const prev = prevHandPos.get(handIdx);
+                        const speed = Math.hypot(palm.x - prev.x, palm.y - prev.y);
+                        if (speed > 80) {
+                            capybaras.forEach(c => {
+                                const dist = Math.hypot(palm.x - c.center.position.x, palm.y - c.center.position.y);
+                                if (dist < 130) {
+                                    let bestP = 0, minDist = 999;
+                                    c.particles.forEach((p, i) => {
+                                        const d = Math.hypot(p.position.x - palm.x, p.position.y - palm.y);
+                                        if (d < minDist) { minDist = d; bestP = i; }
+                                    });
+                                    if (c.bruises.length < 15 && !c.bruises.find(b => b.particleIndex === bestP && !b.hasBandaid)) {
+                                        c.bruises.push({ particleIndex: bestP, offset: { x: (Math.random()-0.5)*15, y: (Math.random()-0.5)*15 }, hasBandaid: false });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    prevHandPos.set(handIdx, palm);
 
                     if (pinchPos) {
                         if (!activePinches.has(handIdx)) {
-                            let closestParticle = null, minDist = 120;
+                            let closestP = null, minDist = 180;
                             capybaras.forEach(c => {
                                 c.particles.forEach(p => {
                                     const d = Math.hypot(p.position.x - pinchPos.x, p.position.y - pinchPos.y);
-                                    if (d < minDist) { minDist = d; closestParticle = p; }
+                                    if (d < minDist) { minDist = d; closestP = p; }
                                 });
                             });
-                            if (closestParticle) {
-                                // 捏住外殼粒子而非核心，這樣才能產生局部拉扯形變
-                                const cns = Constraint.create({ 
-                                    pointA: pinchPos, 
-                                    bodyB: closestParticle, 
-                                    stiffness: 0.5, 
-                                    damping: 0.5,
-                                    render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } 
-                                });
+                            if (closestP) {
+                                const cns = Constraint.create({ pointA: pinchPos, bodyB: closestP, stiffness: 0.5, render: { visible: true, strokeStyle: '#fbbf24', lineWidth: 3 } });
                                 World.add(world, cns);
                                 activePinches.set(handIdx, { constraint: cns });
                             }
-                        } else { 
-                            activePinches.get(handIdx).constraint.pointA = pinchPos; 
-                        }
+                        } else { activePinches.get(handIdx).constraint.pointA = pinchPos; }
                     } else if (activePinches.has(handIdx)) {
                         World.remove(world, activePinches.get(handIdx).constraint);
                         activePinches.delete(handIdx);
@@ -560,7 +574,7 @@
                 });
                 for (let k of activePinches.keys()) if (!activeIndices.has(k)) { World.remove(world, activePinches.get(k).constraint); activePinches.delete(k); }
             } else {
-                activePinches.forEach(v => World.remove(world, v.constraint)); activePinches.clear();
+                activePinches.forEach(v => World.remove(world, v.constraint)); activePinches.clear(); prevHandPos.clear();
             }
         });
 
@@ -580,7 +594,6 @@
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, W = window.innerWidth, H = window.innerHeight;
 
-            // 繪製火堆
             const rx = W - 150, ry = H - 120;
             ctx.save();
             ctx.fillStyle = 'rgba(255, 69, 0, 0.15)';
@@ -590,17 +603,14 @@
                 ctx.font = `${40 + Math.sin(time + i)*10}px serif`;
                 ctx.fillText('🔥', rx - 35 + i*25, ry + 15 + Math.cos(time + i)*10);
             }
+            ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#ff8c00'; ctx.textAlign = 'center';
+            ctx.fillText('烤卡皮巴拉區', rx, ry - 60);
             ctx.restore();
 
-            // 繪製水豚蒙皮
             capybaras.forEach(c => {
-                const pts = c.particles, center = c.core.position;
-                
-                ctx.beginPath();
-                ctx.moveTo(pts[0].position.x, pts[0].position.y);
-                for(let i=1; i<pts.length; i++) {
-                    ctx.lineTo(pts[i].position.x, pts[i].position.y);
-                }
+                const pts = c.particles, center = c.center.position;
+                ctx.beginPath(); ctx.moveTo(pts[0].position.x, pts[0].position.y);
+                for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].position.x, pts[i].position.y);
                 ctx.closePath();
 
                 const level = c.roastedLevel;
@@ -608,46 +618,45 @@
                 const grad = ctx.createRadialGradient(center.x, center.y - 15, 10, center.x, center.y, c.radius * 1.2);
                 grad.addColorStop(0, `rgb(${r+30}, ${g+30}, ${b})`);
                 grad.addColorStop(1, `rgb(${r}, ${g}, ${b})`);
-                
-                ctx.fillStyle = grad;
-                ctx.fill();
-                ctx.strokeStyle = '#452205';
-                ctx.lineWidth = 4;
-                ctx.stroke();
+                ctx.fillStyle = grad; ctx.fill();
+                ctx.strokeStyle = '#452205'; ctx.lineWidth = 4; ctx.stroke();
 
-                // 臉部細節 (基於核心座標與第一個粒子的方向繪製)
-                const angle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
-                ctx.save();
-                ctx.translate(center.x, center.y);
-                ctx.rotate(angle);
-                
-                // 耳朵
+                c.bruises.forEach(br => {
+                    const p = pts[br.particleIndex].position;
+                    const bx = p.x + br.offset.x, by = p.y + br.offset.y;
+                    if (br.hasBandaid) {
+                        ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.PI/4);
+                        ctx.fillStyle = '#eec9a3'; ctx.fillRect(-12, -7, 24, 14);
+                        ctx.strokeStyle = '#d4a373'; ctx.lineWidth = 1; ctx.strokeRect(-12, -7, 24, 14);
+                        ctx.fillStyle = 'rgba(255,0,0,0.5)'; ctx.font = '9px sans-serif'; ctx.fillText('+', -3, 4);
+                        ctx.restore();
+                    } else {
+                        ctx.fillStyle = 'rgba(75, 0, 130, 0.4)';
+                        ctx.beginPath(); ctx.arc(bx, by, 10, 0, Math.PI*2); ctx.fill();
+                    }
+                });
+
+                const bAngle = Math.atan2(pts[0].position.y - center.y, pts[0].position.x - center.x);
+                ctx.save(); ctx.translate(center.x, center.y); ctx.rotate(bAngle);
                 const drawEar = (s) => {
                     ctx.fillStyle = '#713f12'; ctx.beginPath();
-                    ctx.arc(s * 40, -c.radius + 15, 16, 0, Math.PI*2);
-                    ctx.fill(); ctx.stroke();
+                    ctx.arc(s * 40, -c.radius - 5, 14, 0, Math.PI*2);
+                    ctx.fill(); ctx.strokeStyle = '#452205'; ctx.lineWidth = 2; ctx.stroke();
                 };
                 drawEar(-1); drawEar(1);
-
-                // 臉部
                 ctx.fillStyle = '#854d0e'; ctx.beginPath(); ctx.roundRect(-30, 0, 60, 25, 10); ctx.fill();
                 ctx.fillStyle = '#29180c'; ctx.beginPath(); ctx.arc(-7, 15, 3, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(7, 15, 3, 0, Math.PI*2); ctx.fill();
-                
-                // 眉毛
                 ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 3; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(-25, -10); ctx.lineTo(-15, -8); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(25, -10); ctx.lineTo(15, -8); ctx.stroke();
-                
                 ctx.restore();
 
-                // 橘子（跟隨最頂端的粒子）
                 let topP = pts[0]; pts.forEach(p => { if(p.position.y < topP.position.y) topP = p; });
-                ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(topP.position.x, topP.position.y - 15, 16, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(topP.position.x, topP.position.y - 30, 8, 4, Math.PI/4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(topP.position.x, topP.position.y - 10, 15, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.ellipse(topP.position.x, topP.position.y - 25, 8, 4, Math.PI/4, 0, Math.PI*2); ctx.fill();
             });
 
-            // 手部骨架
             if (lastResults && lastResults.multiHandLandmarks) {
                 lastResults.multiHandLandmarks.forEach(lms => {
                     ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; ctx.lineWidth = 3;
