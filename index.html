@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>捏卡皮巴拉</title>
+    <!-- 設定網頁圖標 -->
     <link rel="icon" href="icon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -188,17 +189,17 @@
             
             <div id="camera-setup-area" class="mb-3">
                 <label class="text-xs block mb-1 text-amber-100">選擇攝影機：</label>
-                <select id="camera-select" class="w-full mb-2">
+                <select id="camera-select" class="w-full mb-2 text-black">
                     <option value="">正在載入鏡頭...</option>
                 </select>
                 <button id="start-camera-btn" class="w-full rounded-lg">啟動攝影機</button>
             </div>
 
             <div class="instruction-box bg-orange-900/20 p-2 rounded-lg border border-orange-500/30 mb-2">
-                <p class="text-xs font-bold text-orange-200 mb-1">生存筆記：</p>
-                <div class="text-[11px] text-orange-100">● 疊高高：牠們可以穩穩地疊在同伴身上</div>
-                <div class="text-[11px] text-orange-100">● 碰撞：具有真實實體碰撞，不穿透</div>
-                <div class="text-[11px] text-orange-100">● 餵食：烤至黑色後點擊「吃掉」增加積分</div>
+                <p class="text-xs font-bold text-orange-200 mb-1">操作說明：</p>
+                <div class="text-[11px] text-orange-100">● 捏合：大拇指與食指靠近 (100px) 即可抓取</div>
+                <div class="text-[11px] text-orange-100">● 疊加：利用高摩擦力將牠們疊在一起</div>
+                <div class="text-[11px] text-orange-100">● 烤熟：推到右下角營火區，變黑後可吃掉</div>
             </div>
             
             <div class="control-group">
@@ -209,11 +210,11 @@
                 </div>
                 <div>
                     <label class="text-xs block mb-1">場景切換：</label>
-                    <select id="bg-select" class="w-full">
+                    <select id="bg-select" class="w-full text-black">
+                        <option value="ar">透視模式 (AR)</option>
                         <option value="onsen">溫暖溫泉</option>
                         <option value="pool">清涼水池</option>
                         <option value="land">青青草地</option>
-                        <option value="ar">透視模式 (AR)</option>
                     </select>
                 </div>
                 <div class="flex gap-2">
@@ -273,7 +274,6 @@
         const engine = Engine.create();
         const world = engine.world;
         
-        // 優化物理堆疊參數：提高計算頻率與位置精度
         engine.gravity.y = 1.2;
         engine.positionIterations = 15;
         engine.velocityIterations = 15;
@@ -292,11 +292,10 @@
 
         function createCapybara(xx, yy) {
             const radius = 90;
-            const segments = 45; // 增加細分度讓碰撞邊緣更圓滑穩定
+            const segments = 45;
             const particles = [];
             for (let i = 0; i < segments; i++) {
                 const angle = (i / segments) * Math.PI * 2;
-                // 設定高靜摩擦力 (2.0) 與 0 彈性，讓堆疊效果如同實體
                 particles.push(Bodies.circle(xx + Math.cos(angle) * radius, yy + Math.sin(angle) * radius, 8, {
                     friction: 1.0, 
                     frictionStatic: 2.5,
@@ -309,7 +308,7 @@
             for (let i = 0; i < segments; i++) {
                 constraints.push(Constraint.create({
                     bodyA: particles[i], bodyB: particles[(i + 1) % segments],
-                    stiffness: 0.8, damping: 0.1, render: { visible: false }
+                    stiffness: 0.9, damping: 0.1, render: { visible: false }
                 }));
             }
             const center = Bodies.circle(xx, yy, 25, { isSensor: true, render: { visible: false } });
@@ -354,7 +353,9 @@
 
         async function getCameras() {
             try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
@@ -364,15 +365,22 @@
                     option.text = device.label || `攝影機 ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("無法列出攝影機:", err);
+                cameraSelect.innerHTML = '<option value="">權限拒絕</option>';
+            }
         }
         getCameras();
 
         cameraSelect.onchange = async () => {
-            if (cameraInstance) { await cameraInstance.stop(); cameraInstance = null; }
+            if (cameraInstance) { 
+                try { await cameraInstance.stop(); } catch(e) {}
+                cameraInstance = null; 
+            }
             startBtn.innerText = "啟動攝影機";
             startBtn.disabled = false;
             startBtn.style.animation = 'pulse 2s infinite';
+            startBtn.style.background = '#fbbf24';
         };
 
         function updateBackground() {
@@ -380,13 +388,14 @@
             arVideo.style.display = 'none'; steamOverlay.style.display = 'none'; bgLayer.style.backgroundImage = 'none';
             if (mode === 'ar') { 
                 arVideo.style.display = 'block';
-                if (cameraInstance) arVideo.srcObject = videoElement.srcObject;
             } else { 
                 bgLayer.style.backgroundImage = `url('${bgImages[mode]}')`; 
                 if (mode === 'onsen') steamOverlay.style.display = 'block'; 
             }
         }
         bgSelect.addEventListener('change', updateBackground);
+        // 初始化為透視模式
+        updateBackground();
 
         let currentWalls = [];
         function createWalls() {
@@ -396,10 +405,10 @@
             const groundY = H * 0.875;
 
             currentWalls = [
-                Bodies.rectangle(W / 2, groundY + 300, W + 2000, 600, opt), // 物理地面
-                Bodies.rectangle(W / 2, -300, W + 2000, 600, opt),         // 天花板
-                Bodies.rectangle(-300, H / 2, 600, H + 2000, opt),        // 左牆
-                Bodies.rectangle(W + 300, H / 2, 600, H + 2000, opt)      // 右牆
+                Bodies.rectangle(W / 2, groundY + 300, W + 2000, 600, opt), 
+                Bodies.rectangle(W / 2, -300, W + 2000, 600, opt),         
+                Bodies.rectangle(-300, H / 2, 600, H + 2000, opt),        
+                Bodies.rectangle(W + 300, H / 2, 600, H + 2000, opt)      
             ];
             World.add(world, currentWalls);
         }
@@ -428,7 +437,7 @@
         };
 
         document.getElementById('reset-pos').onclick = () => {
-            capybaras.forEach((c, idx) => {
+            capybaras.forEach((c) => {
                 const xx = window.innerWidth / 2;
                 const yy = window.innerHeight / 2;
                 Body.setPosition(c.center, { x: xx, y: yy });
@@ -453,18 +462,15 @@
             const roastX = W - 150, roastY = H - 120;
 
             capybaras.forEach(c => {
-                // 安全檢查：掉出畫面太遠才傳送
                 if (c.center.position.y > H + 200) {
                     Body.setPosition(c.center, { x: W/2, y: H/2 });
                 }
 
-                // 烤火邏輯
                 const distToFire = Math.hypot(c.center.position.x - roastX, c.center.position.y - roastY);
                 if (distToFire < 130) {
                     c.roastedLevel = Math.min(100, c.roastedLevel + 0.3);
                 }
 
-                // 內縮力與邊界限制
                 c.particles.forEach(p => {
                     const dx = p.position.x - c.center.position.x, dy = p.position.y - c.center.position.y;
                     const d = Math.hypot(dx, dy);
@@ -476,7 +482,6 @@
                     if (p.position.x > W - 15) Body.setPosition(p, { x: W - 15, y: p.position.y });
                 });
 
-                // 自動重置過度變形
                 let area = 0;
                 for (let i = 0; i < c.particles.length; i++) {
                     const p1 = c.particles[i].position, p2 = c.particles[(i+1)%c.particles.length].position;
@@ -521,6 +526,10 @@
             videoPreviewCtx.drawImage(results.image, 0, 0, 200, 150);
             videoPreviewCtx.restore();
 
+            if (bgSelect.value === 'ar' && cameraInstance) {
+                arVideo.srcObject = videoElement.srcObject;
+            }
+
             if (results.multiHandLandmarks) {
                 const W = window.innerWidth, H = window.innerHeight;
                 const activeIndices = new Set();
@@ -529,7 +538,8 @@
                     activeIndices.add(handIdx);
                     const getPx = (i) => ({ x: (1 - lms[i].x) * W, y: lms[i].y * H });
                     const thumb = getPx(4), indexF = getPx(8), palm = getPx(0);
-                    const pinchPos = (Math.hypot(thumb.x - indexF.x, thumb.y - indexF.y) < 55) ? { x: (thumb.x + indexF.x)/2, y: (thumb.y + indexF.y)/2 } : null;
+                    // 優化抓取距離：提升至 100 像素
+                    const pinchPos = (Math.hypot(thumb.x - indexF.x, thumb.y - indexF.y) < 100) ? { x: (thumb.x + indexF.x)/2, y: (thumb.y + indexF.y)/2 } : null;
 
                     if (prevHandPos.has(handIdx)) {
                         const prev = prevHandPos.get(handIdx);
@@ -579,33 +589,74 @@
         });
 
         startBtn.onclick = async () => {
-            const deviceId = cameraSelect.value; if (!deviceId) return;
-            startBtn.innerText = "正在啟動..."; startBtn.disabled = true;
-            if (cameraInstance) await cameraInstance.stop();
-            cameraInstance = new Camera(videoElement, {
-                onFrame: async () => { await hands.send({image: videoElement}); },
-                width: 640, height: 480, deviceId
-            });
-            await cameraInstance.start();
-            if (bgSelect.value === 'ar') arVideo.srcObject = videoElement.srcObject;
-            startBtn.innerText = "攝影機已連線"; startBtn.style.animation = 'none'; startBtn.style.background = '#4ade80';
+            const deviceId = cameraSelect.value; 
+            if (!deviceId) return;
+            startBtn.innerText = "正在啟動..."; 
+            startBtn.disabled = true;
+            if (cameraInstance) {
+                try { await cameraInstance.stop(); } catch(e) {}
+                cameraInstance = null;
+            }
+            await new Promise(r => setTimeout(r, 300));
+            try {
+                cameraInstance = new Camera(videoElement, {
+                    onFrame: async () => { if (hands) await hands.send({image: videoElement}); },
+                    width: 640, height: 480, deviceId: deviceId
+                });
+                await cameraInstance.start().catch(err => { throw new Error("Timeout starting video source"); });
+                startBtn.innerText = "攝影機已連線"; 
+                startBtn.style.animation = 'none'; 
+                startBtn.style.background = '#4ade80';
+                if (bgSelect.value === 'ar') { arVideo.srcObject = videoElement.srcObject; }
+            } catch (err) { 
+                console.error(err);
+                startBtn.innerText = "連線超時，請重試"; 
+                startBtn.disabled = false;
+                startBtn.style.background = '#f87171';
+            }
         };
 
         Events.on(render, 'afterRender', () => {
             const ctx = render.context, W = window.innerWidth, H = window.innerHeight;
 
+            // --- 強化版營火特效 ---
             const rx = W - 150, ry = H - 120;
             ctx.save();
-            ctx.fillStyle = 'rgba(255, 69, 0, 0.15)';
+            // 基礎光暈
+            const glow = ctx.createRadialGradient(rx, ry, 10, rx, ry, 100);
+            glow.addColorStop(0, 'rgba(255, 120, 0, 0.4)');
+            glow.addColorStop(1, 'rgba(255, 60, 0, 0)');
+            ctx.fillStyle = glow;
             ctx.beginPath(); ctx.arc(rx, ry, 100, 0, Math.PI*2); ctx.fill();
-            const time = Date.now() * 0.01;
-            for(let i=0; i<3; i++) {
-                ctx.font = `${40 + Math.sin(time + i)*10}px serif`;
-                ctx.fillText('🔥', rx - 35 + i*25, ry + 15 + Math.cos(time + i)*10);
+            
+            // 繪製動態火苗 (取代表情符號)
+            const time = Date.now() * 0.005;
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const offset = Math.sin(time + i) * 15;
+                const fx = rx + Math.cos(angle) * 20;
+                const fy = ry + Math.sin(angle) * 10 + offset;
+                const fSize = 25 + Math.cos(time * 2 + i) * 10;
+                
+                const fGrad = ctx.createRadialGradient(fx, fy, 2, fx, fy, fSize);
+                fGrad.addColorStop(0, '#fffbe6');
+                fGrad.addColorStop(0.3, '#ffcc00');
+                fGrad.addColorStop(0.6, '#ff6600');
+                fGrad.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = fGrad;
+                ctx.beginPath();
+                ctx.arc(fx, fy, fSize, 0, Math.PI * 2);
+                ctx.fill();
             }
-            ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#ff8c00'; ctx.textAlign = 'center';
-            ctx.fillText('烤卡皮巴拉區', rx, ry - 60);
+            ctx.globalCompositeOperation = 'source-over';
+            
+            ctx.font = 'bold 16px sans-serif'; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
+            ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+            ctx.fillText('烤卡皮巴拉區', rx, ry - 75);
             ctx.restore();
+            // --- 營火特效結束 ---
 
             capybaras.forEach(c => {
                 const pts = c.particles, center = c.center.position;
